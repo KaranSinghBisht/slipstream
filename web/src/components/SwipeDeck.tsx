@@ -15,6 +15,16 @@ function strategyOf(l: LeaderStats): string {
   return "Momentum";
 }
 
+const STRATEGY_BLURB: Record<string, string> = {
+  "High leverage": "Runs size on thin margin — high beta, high risk.",
+  "Capital preservation": "Sits far from liquidation — built to ride out drawdowns.",
+  "High conviction": "Big notional, concentrated — strong directional bets.",
+  "Diversified": "Spreads risk across many live markets.",
+  "Momentum": "Active across several markets, riding the trend.",
+};
+
+const liqColor = (p: number) => (p < 10 ? "#fb7185" : p < 25 ? "#fbbf24" : "#34d399");
+
 export function SwipeDeck({ leaders, onComplete }: { leaders: LeaderStats[]; onComplete: (kept: string[]) => void }) {
   const [i, setI] = useState(0);
   const [kept, setKept] = useState<string[]>([]);
@@ -54,18 +64,27 @@ export function SwipeDeck({ leaders, onComplete }: { leaders: LeaderStats[]; onC
               <SparkleIcon size={24} weight="fill" />
             </span>
             <p className="text-sm font-semibold tracking-tight text-fg">You drafted {kept.length} leaders.</p>
-            <p className="max-w-xs text-sm text-muted">Fable will analyse their live positions and size your squad.</p>
+            <p className="max-w-xs text-sm text-muted">Claude will analyse their live positions and size your squad.</p>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-5">
-        <DeckButton onClick={() => decide(false)} disabled={done} variant="pass">
-          <XIcon size={22} weight="bold" />
-        </DeckButton>
-        <DeckButton onClick={() => decide(true)} disabled={done} variant="keep">
-          <CheckIcon size={22} weight="bold" />
-        </DeckButton>
+      <div className="flex flex-col items-center gap-2.5">
+        <div className="flex items-center gap-8">
+          <div className="flex flex-col items-center gap-1.5">
+            <DeckButton onClick={() => decide(false)} disabled={done} variant="pass">
+              <XIcon size={22} weight="bold" />
+            </DeckButton>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-short/80">Pass</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <DeckButton onClick={() => decide(true)} disabled={done} variant="keep">
+              <CheckIcon size={22} weight="bold" />
+            </DeckButton>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Draft</span>
+          </div>
+        </div>
+        <span className="font-mono text-[11px] text-faint">tap, or swipe the card&nbsp;&nbsp;←&nbsp;pass&nbsp;·&nbsp;draft&nbsp;→</span>
       </div>
 
       {kept.length >= 1 && (
@@ -127,14 +146,31 @@ function Card({ leader, keepOp, passOp }: { leader: LeaderStats; keepOp?: Motion
         <span className="font-mono text-xs text-muted">{addr(leader.owner, 4)}</span>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-5">
         <div className="text-[10px] uppercase tracking-wider text-faint">Open notional</div>
         <div className="whitespace-nowrap font-mono text-4xl font-semibold tracking-tight text-fg tnum">{compactUsd(leader.notionalUsd)}</div>
       </div>
 
-      <div className="mt-auto grid grid-cols-2 gap-x-6 gap-y-5">
+      <p className="mt-3 text-sm leading-relaxed text-muted">{STRATEGY_BLURB[strategyOf(leader)]}</p>
+
+      <div className="mt-5">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="uppercase tracking-wider text-faint">Liquidation buffer</span>
+          <span className="font-mono font-semibold tnum" style={{ color: liqColor(leader.liqDistancePct) }}>
+            {pct(leader.liqDistancePct, 0)}
+          </span>
+        </div>
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.min(100, Math.max(4, (leader.liqDistancePct / 50) * 100))}%`, background: liqColor(leader.liqDistancePct) }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4">
         <Stat label="Avg leverage" value={`${leader.avgLeverage.toFixed(1)}×`} />
-        <Stat label="Liq buffer" value={pct(leader.liqDistancePct, 0)} />
+        <Stat label="Collateral" value={compactUsd(leader.collateralUsd)} />
         <Stat label="Positions" value={`${leader.positions}`} />
         <Stat label="Markets" value={`${leader.markets.length}`} />
       </div>

@@ -41,4 +41,6 @@ export const api = {
   follow: (session: string, squad: SquadPick[]) =>
     postJson<{ fill: unknown; state: VaultState }>("/follow", { session, squad }),
   stress: (session: string) => postJson<VaultState>("/stress", { session }),
+  win: (session: string) => postJson<VaultState>("/win", { session }),
+  settle: (session: string) => postJson<{ settled: boolean; sig: string; vault: string }>("/settle", { session }),
 };

@@ -1,5 +1,5 @@
 /**
- * Unified API for the web app. Sweeps live Flash leaders, runs the Fable scout,
+ * Unified API for the web app. Sweeps live Flash leaders, runs the Claude scout,
  * provisions ER vault sessions, mirrors approved squads, and streams vault state.
  *
  *   GET  /health
@@ -30,7 +30,7 @@ import { ownerSnapshot } from "../flash/v2.js";
 import { planFreshMirror } from "../flash/mirror-plan.js";
 import { getSession, listSessions } from "../bridge/context.js";
 import { getVaultState, startSession } from "../bridge/session.js";
-import { followSquad, stress } from "../bridge/mirror.js";
+import { followSquad, replayWin, settleSession, stress } from "../bridge/mirror.js";
 import { loadCache, saveCache } from "./cache.js";
 import { getCandles } from "./candles.js";
 import { getPrices } from "./prices.js";
@@ -177,6 +177,18 @@ async function route(req: http.IncomingMessage, res: http.ServerResponse): Promi
     const s = getSession(String(body?.session ?? ""));
     await stress(s);
     return json(res, await getVaultState(s));
+  }
+  if (p === "/win" && req.method === "POST") {
+    const body = await readJson(req);
+    const s = getSession(String(body?.session ?? ""));
+    await replayWin(s);
+    return json(res, await getVaultState(s));
+  }
+  if (p === "/settle" && req.method === "POST") {
+    const body = await readJson(req);
+    const s = getSession(String(body?.session ?? ""));
+    const r = await settleSession(s);
+    return json(res, { settled: true, sig: r.sig, vault: s.vault.toBase58() });
   }
   sendError(res, 404, "not found");
 }

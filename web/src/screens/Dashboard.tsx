@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
 import { AnimatePresence, motion } from "motion/react";
-import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon } from "@phosphor-icons/react";
+import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon, TrendUpIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
 import { CandleChart, type PriceMark, type ChartEvent } from "@/components/CandleChart";
@@ -15,8 +14,11 @@ import type { SessionInfo, VaultState } from "@/lib/types";
 export function Dashboard({ session }: { session: SessionInfo }) {
   const [v, setV] = useState<VaultState | null>(null);
   const [stressing, setStressing] = useState(false);
+  const [winning, setWinning] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const [settleSig, setSettleSig] = useState<string | null>(null);
   const busy = useRef(false);
-  const { publicKey } = useWallet();
 
   useEffect(() => {
     let live = true;
@@ -72,6 +74,30 @@ export function Dashboard({ session }: { session: SessionInfo }) {
     }
   }
 
+  async function runWin() {
+    setWinning(true);
+    try {
+      setV(await api.win(session.session));
+    } catch {
+      /* surfaced by next poll */
+    } finally {
+      setWinning(false);
+    }
+  }
+
+  async function runSettle() {
+    setSettling(true);
+    try {
+      const r = await api.settle(session.session);
+      setSettleSig(r.sig);
+      setSettled(true);
+    } catch {
+      /* surfaced by next poll */
+    } finally {
+      setSettling(false);
+    }
+  }
+
   if (!v) return <DashboardSkeleton />;
 
   const isLong = v.side === "long";
@@ -92,16 +118,24 @@ export function Dashboard({ session }: { session: SessionInfo }) {
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
             className="mb-5"
           >
-            <div className="flex items-center gap-4 rounded-lg bg-short/10 p-4 ring-1 ring-short/30">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-short/15 text-short">
+            <div className={`flex items-center gap-4 rounded-lg p-4 ring-1 ${realizedPct >= 0 ? "bg-accent/10 ring-accent/30" : "bg-short/10 ring-short/30"}`}>
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
+                  realizedPct >= 0 ? "bg-accent/15 text-accent" : "bg-short/15 text-short"
+                }`}
+              >
                 <ShieldCheckIcon size={20} weight="fill" />
               </span>
               <div className="flex-1">
-                <p className="text-sm font-semibold tracking-tight text-fg">Trailing stop fired on-chain. Downside capped.</p>
+                <p className="text-sm font-semibold tracking-tight text-fg">
+                  {realizedPct >= 0
+                    ? "Trailing stop locked your gain on-chain."
+                    : "Trailing stop fired on-chain. Downside capped."}
+                </p>
                 <p className="text-sm text-muted">
                   The guard closed your position autonomously at {price(v.lastPrice)}. Equity locked at{" "}
-                  <span className="font-mono text-fg">{usd2(v.equityUsd)}</span> ({signedPct(realizedPct)}) while the
-                  leader kept riding it down.
+                  <span className="font-mono text-fg">{usd2(v.equityUsd)}</span> ({signedPct(realizedPct)}){" "}
+                  {realizedPct >= 0 ? "while the leader gave the move back." : "while the leader kept riding it down."}
                 </p>
               </div>
             </div>
@@ -123,9 +157,6 @@ export function Dashboard({ session }: { session: SessionInfo }) {
                   {v.market} {v.side}
                 </span>
                 <span className="font-mono text-xs text-faint">vault {addr(v.vault, 4)}</span>
-                {publicKey && (
-                  <span className="hidden font-mono text-xs text-faint sm:inline">· for {addr(publicKey.toBase58(), 4)}</span>
-                )}
               </div>
               <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted">
                 <BroadcastIcon size={13} className="text-accent" /> {v.erUrl.replace(/^https?:\/\//, "").split(".")[0]}
@@ -159,22 +190,49 @@ export function Dashboard({ session }: { session: SessionInfo }) {
 
           {/* the money shot: guarded vs held */}
           <Bezel innerClassName="p-5">
-            <PnlChart samples={v.chart} firedAt={v.chartFiredAt} alloc={v.allocationUsd} note="adverse replay" />
+            <PnlChart
+              samples={v.chart}
+              firedAt={v.chartFiredAt}
+              alloc={v.allocationUsd}
+              note={v.stopFired ? (realizedPct >= 0 ? "winning replay" : "adverse replay") : "replay"}
+            />
           </Bezel>
 
           <Bezel innerClassName="flex items-center justify-between gap-4 p-5">
             <div>
-              <p className="text-sm font-semibold tracking-tight text-fg">Replay an adverse move</p>
-              <p className="max-w-md text-xs leading-relaxed text-faint">
-                Pushes a scripted adverse price path on-chain via <span className="font-mono">apply_tick</span> so you
-                can watch the guard fire in seconds. The trailing-stop logic and Pyth read run for real in the rollup —
-                the curve is an illustrative replay, not a live market.
-              </p>
+              {settled ? (
+                <>
+                  <p className="text-sm font-semibold tracking-tight text-accent">Settled on-chain.</p>
+                  <p className="max-w-md text-xs leading-relaxed text-faint">
+                    Vault committed to base and ownership returned to you — undelegated, guard stopped.{" "}
+                    {settleSig && <span className="font-mono text-[10px] text-muted">{addr(settleSig, 6)}</span>}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold tracking-tight text-fg">Replay the guard</p>
+                  <p className="max-w-md text-xs leading-relaxed text-faint">
+                    Run a scripted price path on-chain via <span className="font-mono">apply_tick</span> — a winning move
+                    where the stop ratchets up and locks your gain, or a drawdown where it caps your loss. Real
+                    trailing-stop logic + Pyth read in the rollup; the curve is an illustrative replay.
+                  </p>
+                </>
+              )}
             </div>
-            <Button onClick={runStress} variant="danger" disabled={!open || stressing}>
-              <TrendDownIcon size={16} weight="bold" />
-              {stressing ? "Replaying…" : "Replay drawdown"}
-            </Button>
+            <div className="flex shrink-0 flex-col gap-2">
+              <Button onClick={runWin} disabled={winning || stressing || settled}>
+                <TrendUpIcon size={16} weight="bold" />
+                {winning ? "Running…" : "Replay a winning move"}
+              </Button>
+              <Button onClick={runStress} variant="danger" disabled={stressing || winning || settled}>
+                <TrendDownIcon size={16} weight="bold" />
+                {stressing ? "Replaying…" : "Replay drawdown"}
+              </Button>
+              <Button onClick={runSettle} variant="ghost" disabled={settling || settled}>
+                <ShieldCheckIcon size={15} weight="fill" />
+                {settling ? "Settling…" : settled ? "Settled" : "Close & settle"}
+              </Button>
+            </div>
           </Bezel>
         </div>
 

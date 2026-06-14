@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Slipstream MCP — lets Claude Code (Fable) be your copy-trading copilot: scout
+// Slipstream MCP — lets Claude Code be your copy-trading copilot: scout
 // the Flash leaderboard, draft a squad, and watch your guarded ER vaults live.
 // A thin layer over the Slipstream API (pnpm api on :8787). MCP speaks JSON-RPC
 // over stdout, so nothing here may write to stdout except the protocol itself.
@@ -100,13 +100,18 @@ server.registerTool(
   "slipstream_follow",
   {
     title: "Follow a squad",
-    description: "Provision a guarded ER vault, mirror the AI-scouted squad into it (scaled to your caps), and start the autonomous on-chain trailing-stop guard. Devnet.",
-    inputSchema: { ...CONSTRAINTS, count: z.number().int().min(1).max(5).default(3).describe("how many of the scouted squad to draft") },
+    description: "Scout + draft in one step: provision a guarded ER vault, mirror the top `count` AI-scouted leaders into it (allocations re-normalized to 100%, scaled to your caps), and start the autonomous on-chain trailing-stop guard. Devnet. No need to call slipstream_scout first.",
+    inputSchema: { ...CONSTRAINTS, count: z.number().int().min(1).max(5).default(3).describe("how many of the scouted squad to draft (the top N by weight)") },
   },
   async ({ count, ...c }) => {
     try {
-      const scout = await apiPost<{ squad: unknown[] }>("/scout", { constraints: c });
-      const squad = scout.squad.slice(0, count);
+      const scout = await apiPost<{ squad: Array<{ allocationPct: number; [k: string]: unknown }> }>("/scout", { constraints: c });
+      const picked = scout.squad.slice(0, count);
+      if (picked.length === 0) throw new Error("scout returned an empty squad");
+      // The vault requires drafted allocations to sum to ~100%, so re-normalize the
+      // sliced top-N subset among themselves (follow 3 of 4 → those 3 split 100%).
+      const total = picked.reduce((a, p) => a + (p.allocationPct || 0), 0) || 1;
+      const squad = picked.map((p) => ({ ...p, allocationPct: Math.round((p.allocationPct / total) * 100) }));
       const session = await apiPost<{ session: string }>("/session", { constraints: c });
       const r = await apiPost<{ state: VaultState }>("/follow", { session: session.session, squad });
       return ok(`Following ${squad.length} leaders in a guarded vault.\n\n${formatStatus(r.state)}`);

@@ -1,7 +1,7 @@
-"use client";
 import type { ReactNode } from "react";
-import { WalletProviders } from "@/components/wallet/WalletProviders";
 
+/** The app uses a local demo account chip (no wallet-adapter), so there's no
+ *  provider here — keeps stray browser wallets (e.g. MetaMask) from probing. */
 export default function AppLayout({ children }: { children: ReactNode }) {
-  return <WalletProviders>{children}</WalletProviders>;
+  return <>{children}</>;
 }

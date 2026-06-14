@@ -6,20 +6,22 @@ import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Backdrop } from "@/components/Backdrop";
 import { Brand } from "@/components/Brand";
 import { Stepper } from "@/components/Stepper";
-import { ConnectButton } from "@/components/wallet/ConnectButton";
+import { AccountChip } from "@/components/wallet/AccountChip";
 import { Intake } from "@/screens/Intake";
 import { Scout } from "@/screens/Scout";
 import { Dashboard } from "@/screens/Dashboard";
+import { Portfolio } from "@/screens/Portfolio";
 import { api } from "@/lib/api";
 import type { Constraints, SessionInfo } from "@/lib/types";
 
-type Stage = "intake" | "scout" | "dashboard";
-const STAGE_INDEX: Record<Stage, number> = { intake: 0, scout: 1, dashboard: 2 };
+type Stage = "intake" | "scout" | "dashboard" | "portfolio";
+const STAGE_INDEX: Record<Stage, number> = { intake: 0, scout: 1, dashboard: 2, portfolio: 2 };
 
 export default function AppPage() {
   const [stage, setStage] = useState<Stage>("intake");
   const [constraints, setConstraints] = useState<Constraints | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
+  const [vaults, setVaults] = useState<SessionInfo[]>([]);
   const sessionPromise = useRef<Promise<SessionInfo> | null>(null);
 
   function onIntake(c: Constraints) {
@@ -38,7 +40,8 @@ export default function AppPage() {
     return sessionPromise.current;
   }
 
-  function reset() {
+  // Start a fresh squad while keeping the vaults you've already deployed.
+  function newSquad() {
     sessionPromise.current = null;
     setSession(null);
     setConstraints(null);
@@ -46,7 +49,7 @@ export default function AppPage() {
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col">
+    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden">
       <Backdrop />
 
       <header className="sticky top-0 z-30 border-b border-line/60 bg-ink/70 backdrop-blur-xl">
@@ -60,13 +63,13 @@ export default function AppPage() {
             </div>
             {stage !== "intake" && (
               <button
-                onClick={reset}
+                onClick={newSquad}
                 className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-muted ring-1 ring-line transition-colors hover:text-fg"
               >
-                <ArrowLeftIcon size={12} weight="bold" /> Restart
+                <ArrowLeftIcon size={12} weight="bold" /> New squad
               </button>
             )}
-            <ConnectButton />
+            <AccountChip vaults={vaults.length} onClick={() => setStage("portfolio")} />
           </div>
         </div>
       </header>
@@ -88,12 +91,23 @@ export default function AppPage() {
                 session={session}
                 ensureSession={ensureSession}
                 onDeployed={(s) => {
+                  setVaults((vs) => [...vs.filter((v) => v.session !== s.session), s]);
                   setSession(s);
                   setStage("dashboard");
                 }}
               />
             )}
             {stage === "dashboard" && session && <Dashboard session={session} />}
+            {stage === "portfolio" && (
+              <Portfolio
+                vaults={vaults}
+                onOpen={(s) => {
+                  setSession(s);
+                  setStage("dashboard");
+                }}
+                onNew={newSquad}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </main>

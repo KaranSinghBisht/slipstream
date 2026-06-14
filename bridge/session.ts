@@ -103,6 +103,8 @@ export async function getVaultState(session: Session) {
   const v = program.coder.accounts.decode("followerVault", info.data);
   const mark = await readMark(session);
   const qty = num(v.qty1E6) / USD;
+  const allocationUsd = num(v.allocationUsd6) / USD;
+  const demoRealized = session.demoRealizedUsd; // deterministic replay outcome, if any
   return {
     sessionId: session.id,
     owner: session.owner.publicKey.toBase58(),
@@ -111,10 +113,10 @@ export async function getVaultState(session: Session) {
     market: session.constraints.market,
     erUrl: session.erUrl,
     layer,
-    allocationUsd: num(v.allocationUsd6) / USD,
+    allocationUsd,
     maxLeverage: v.maxLeverageX10 / 10,
     trailBps: v.trailBps,
-    equityUsd: num(v.equityUsd6) / USD,
+    equityUsd: demoRealized != null ? allocationUsd + demoRealized : num(v.equityUsd6) / USD,
     qty,
     side: qty > 0 ? "long" : qty < 0 ? "short" : "flat",
     entryPrice: num(v.entryPrice1E6) / USD,
@@ -122,7 +124,7 @@ export async function getVaultState(session: Session) {
     trailStop: num(v.trailStopPrice1E6) / USD,
     lastPrice: num(v.lastPrice1E6) / USD,
     markPrice: mark,
-    stopFired: v.stopFired,
+    stopFired: demoRealized != null ? true : v.stopFired,
     tickCount: num(v.tickCount),
     crankActive: session.crankTaskId !== undefined && !v.stopFired,
     followed: session.followed,

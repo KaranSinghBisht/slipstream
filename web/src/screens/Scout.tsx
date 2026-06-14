@@ -99,7 +99,7 @@ export function Scout({
             <div className="text-center">
               <h2 className="text-2xl font-semibold tracking-tight text-fg">Draft your squad.</h2>
               <p className="mt-1 max-w-sm text-sm text-muted">
-                Swipe right to keep a leader, left to pass. Fable analyses the ones you keep and sizes them.
+                Swipe right to keep a leader, left to pass. Claude analyses the ones you keep and sizes them.
               </p>
             </div>
             <SwipeDeck leaders={candidates} onComplete={onSwiped} />
@@ -153,7 +153,7 @@ function Analyzing() {
       >
         <SparkleIcon size={22} weight="fill" />
       </motion.span>
-      <p className="text-sm font-semibold tracking-tight text-fg">Fable is analysing your picks…</p>
+      <p className="text-sm font-semibold tracking-tight text-fg">Claude is analysing your picks…</p>
       <p className="max-w-sm text-sm text-muted">Reading their live positions, leverage, and the liquidation heatmap to size your squad.</p>
     </div>
   );
@@ -188,19 +188,19 @@ function SquadStage({
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/12 text-accent">
           <SparkleIcon size={18} weight="fill" />
         </span>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tracking-tight text-fg">Scout report</span>
-            <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted ring-1 ring-line">
+            <span className="rounded-full bg-accent/[0.08] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent ring-1 ring-accent/20">
               {prettyModel(result.model)}
             </span>
           </div>
-          <p className="text-sm leading-relaxed text-muted">{result.summary}</p>
+          <p className="max-w-[68ch] text-sm leading-relaxed text-muted">{result.summary}</p>
         </div>
       </Bezel>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-4">
           {result.squad.map((p, i) => (
             <PickCard key={p.owner} pick={p} index={i} allocationUsd={constraints.allocationUsd} />
           ))}
@@ -232,42 +232,66 @@ function SquadStage({
 
 function PickCard({ pick, index, allocationUsd }: { pick: SquadPick; index: number; allocationUsd: number }) {
   const size = Math.round((pick.allocationPct / 100) * allocationUsd);
+  const liq = pick.stats.liqDistancePct;
+  const liqCol = liq < 10 ? "#fb7185" : liq < 25 ? "#fbbf24" : "#34d399";
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Bezel innerClassName="flex h-full flex-col gap-4 p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="rounded-md bg-accent/12 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
+      <Bezel className="transition-shadow duration-500 hover:ring-1 hover:ring-accent/25" innerClassName="flex h-full flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="w-fit whitespace-nowrap rounded-md bg-accent/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
               {pick.role}
             </span>
             <span className="font-mono text-sm text-fg">{addr(pick.owner, 5)}</span>
           </div>
           <div className="text-right">
-            <div className="font-mono text-lg font-semibold text-fg tnum">{pick.allocationPct}%</div>
-            <div className="font-mono text-[10px] text-faint tnum">${size.toLocaleString()}</div>
+            <div className="font-mono text-2xl font-semibold text-fg tnum">{pick.allocationPct}%</div>
+            <div className="font-mono text-[11px] text-muted tnum">${size.toLocaleString()} of your book</div>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          <Mini icon={<TrendUpIcon size={14} />} value={compactUsd(pick.stats.notionalUsd)} />
-          <Mini icon={<GaugeIcon size={14} />} value={`${pick.stats.avgLeverage.toFixed(1)}×`} />
-          <Mini icon={<ShieldIcon size={14} />} value={pct(pick.stats.liqDistancePct, 0)} />
-          <Mini icon={<StackIcon size={14} />} value={`${pick.stats.positions}`} />
+
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full bg-flash" style={{ width: `${pick.allocationPct}%` }} />
         </div>
+
+        <div className="grid grid-cols-3 gap-x-4">
+          <Stat icon={<TrendUpIcon size={13} />} label="Notional" value={compactUsd(pick.stats.notionalUsd)} />
+          <Stat icon={<GaugeIcon size={13} />} label="Leverage" value={`${pick.stats.avgLeverage.toFixed(1)}×`} />
+          <Stat icon={<StackIcon size={13} />} label="Positions" value={`${pick.stats.positions}`} />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="flex items-center gap-1 uppercase tracking-wider text-faint">
+              <ShieldIcon size={12} /> Liquidation buffer
+            </span>
+            <span className="font-mono font-semibold tnum" style={{ color: liqCol }}>
+              {pct(liq, 0)}
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(4, (liq / 50) * 100))}%`, background: liqCol }} />
+          </div>
+        </div>
+
         <p className="text-sm leading-relaxed text-muted">{pick.reason}</p>
       </Bezel>
     </motion.div>
   );
 }
 
-function Mini({ icon, value }: { icon: React.ReactNode; value: string }) {
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-muted">{icon}</span>
-      <span className="font-mono text-sm text-fg tnum">{value}</span>
+      <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-faint">
+        {icon}
+        {label}
+      </span>
+      <span className="font-mono text-sm font-semibold text-fg tnum">{value}</span>
     </div>
   );
 }

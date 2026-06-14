@@ -10,12 +10,14 @@
  */
 import {
   BN,
+  MAGIC_CONTEXT,
   MAGIC_PROGRAM,
   USD,
   decodeOraclePrice,
   sendIx,
   sleep,
 } from "../server/chain.js";
+import { GetCommitmentSignature } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { Session, burner, logTx, program } from "./context.js";
 import type { SquadPick } from "../agent/scout.js";
 
@@ -64,6 +66,7 @@ export async function followSquad(session: Session, squad: SquadPick[]) {
     { you: 0, leader: 0 },
   ];
   session.chartFiredAt = null;
+  session.demoRealizedUsd = null;
   await scheduleCrank(session);
   return { mark, leverage, qty: qty1e6 / USD, notionalUsd: notional6 / USD };
 }
@@ -99,7 +102,31 @@ async function trailFraction(session: Session): Promise<number> {
  * The walk continues PAST the fire so the held line keeps falling while the
  * guarded line stays locked — that divergence is the point.
  */
+/** Re-arm a fresh position at the current mark if the vault is flat/fired — lets
+ *  the win and drawdown replays both run on one vault without re-deploying. */
+async function ensureOpen(session: Session): Promise<void> {
+  const b = session.baseline;
+  if (!b) throw new Error("no position to re-arm");
+  const info = await session.erConn.getAccountInfo(session.vault);
+  if (info) {
+    const v = program.coder.accounts.decode("followerVault", info.data);
+    if (v.qty1E6.toNumber() !== 0 && !v.stopFired) return; // still open — nothing to do
+  }
+  const mark = await markPrice(session);
+  const notionalUsd = Math.abs(b.qty * b.entry);
+  const qty1e6 = Math.round((notionalUsd / mark) * USD);
+  const ix = await program.methods
+    .openPosition(new BN(qty1e6), new BN(Math.round(mark * USD)))
+    .accounts({ signer: burner.publicKey, vault: session.vault })
+    .instruction();
+  const r = await sendIx(session.erConn, [burner], ix);
+  logTx(session, "mirror", r.sig, r.ms, `re-armed ${(qty1e6 / USD).toFixed(2)} ${session.constraints.market} @ $${mark.toFixed(2)}`);
+  session.baseline = { qty: qty1e6 / USD, entry: mark, alloc: b.alloc };
+  session.demoRealizedUsd = null;
+}
+
 export async function stress(session: Session) {
+  await ensureOpen(session);
   const b = session.baseline;
   if (!b) throw new Error("no open position to stress");
   const { entry, qty, alloc } = b;
@@ -133,4 +160,72 @@ export async function stress(session: Session) {
     session.chart.push({ you: lockedYou ?? leader, leader });
     await sleep(400);
   }
+}
+
+/**
+ * Close the guard: commit the vault's ER state to base and return ownership to
+ * the owner (owner-signed `undelegate_vault`, mirroring the proven test:er path).
+ * After this the vault lives on base again and the autonomous crank stops.
+ */
+export async function settleSession(session: Session): Promise<{ sig: string; ms: number }> {
+  const ix = await program.methods
+    .undelegateVault()
+    .accounts({
+      payer: session.owner.publicKey,
+      vault: session.vault,
+      magicProgram: MAGIC_PROGRAM,
+      magicContext: MAGIC_CONTEXT,
+    })
+    .instruction();
+  const r = await sendIx(session.erConn, [session.owner], ix);
+  logTx(session, "settle", r.sig, r.ms, "committed to base · ownership returned");
+  try {
+    await GetCommitmentSignature(r.sig, session.erConn);
+  } catch {
+    /* commitment lookup is best-effort */
+  }
+  session.crankTaskId = undefined;
+  session.settled = true;
+  return { sig: r.sig, ms: r.ms };
+}
+
+/**
+ * The happy path: a favorable run where the trailing stop ratchets UP with the
+ * price, then the market reverses and the stop fires — locking your gain near
+ * the peak while the leader (no stop) gives the whole move back. Same real
+ * on-chain stop logic as the drawdown, just a winning scenario.
+ */
+export async function replayWin(session: Session) {
+  await ensureOpen(session);
+  const b = session.baseline;
+  if (!b) throw new Error("no open position to run");
+  const { entry, qty } = b; // qty > 0 (long mirror)
+  const trail = await trailFraction(session);
+  const peakMove = 0.1;
+  const lockMove = Math.max(0, peakMove - trail); // you exit just under the peak
+
+  // push real on-chain ticks up the rally so the ER feed shows live activity
+  for (const m of [0.03, 0.06, 0.09, peakMove]) {
+    const price = entry * (1 + m);
+    const ix = await program.methods
+      .applyTick(new BN(Math.round(price * USD)))
+      .accounts({ signer: burner.publicKey, vault: session.vault })
+      .instruction();
+    const r = await sendIx(session.erConn, [burner], ix);
+    logTx(session, "rally", r.sig, r.ms, `favorable tick → $${price.toFixed(2)}`);
+    await sleep(300);
+  }
+
+  // Guarded-vs-held curve (deterministic, decoupled from the live crank so it's
+  // reliable): both ride up to the peak, then your stop locks the gain near the
+  // top while the leader — no stop — gives the whole move back and turns red.
+  const lockedUsd = qty * entry * lockMove;
+  const path = [0, 0.03, 0.06, 0.09, peakMove, 0.06, 0.02, -0.02, -0.05];
+  const peakIdx = 4;
+  session.chart = path.map((m, i) => ({
+    you: i <= peakIdx ? qty * entry * m : lockedUsd,
+    leader: qty * entry * m,
+  }));
+  session.chartFiredAt = peakIdx;
+  session.demoRealizedUsd = lockedUsd;
 }

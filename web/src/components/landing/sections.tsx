@@ -109,7 +109,7 @@ export function Hero() {
 
 const STEPS = [
   { icon: <SlidersHorizontalIcon size={20} />, title: "Set your guardrails", body: "Market, budget, leverage ceiling, trailing stop. The agent only acts inside them." },
-  { icon: <SparkleIcon size={20} weight="fill" />, title: "The AI scouts a squad", body: "Fable reads the live leaderboard and liquidation heatmap, proposes 3–5 leaders with reasoning." },
+  { icon: <SparkleIcon size={20} weight="fill" />, title: "The AI scouts a squad", body: "Claude reads the live leaderboard and liquidation heatmap, proposes 3–5 leaders with reasoning." },
   { icon: <HandSwipeRightIcon size={20} />, title: "Swipe to approve", body: "Draft who you trust. Nothing trades until you say so — human-in-the-loop by design." },
   { icon: <ShieldCheckIcon size={20} weight="fill" />, title: "The guard runs on-chain", body: "Your mirrored position is delegated to a rollup where a trailing stop fires at tick speed." },
 ];
@@ -197,7 +197,7 @@ export function Mcp() {
           Watch it from Claude Code.
         </h2>
         <p className="text-lg leading-relaxed text-muted">
-          Slipstream ships an MCP server, so Fable becomes your copy-trading copilot — scout, follow, and monitor your
+          Slipstream ships an MCP server, so Claude becomes your copy-trading copilot — scout, follow, and monitor your
           guarded vaults without leaving chat.
         </p>
         <div className="flex flex-wrap gap-2">

@@ -18,6 +18,8 @@ server — scout, draft, follow, and watch your guard, from chat.
 
 Built for **Solana Blitz v5** (theme: Trading). MagicBlock ER ✓ · Flash Trade ✓ · Claude MCP ✓.
 
+**[▶ Live app](https://slipstream-liard.vercel.app)** · **[On-chain program ↗](https://explorer.solana.com/address/3yqVR6fFZVxwKy5CqY968ZdVKJWVtqr4jANi98NmVovz?cluster=devnet)** (devnet)
+
 ---
 
 ## Not another stop-loss tool
@@ -47,18 +49,29 @@ below.
 |------|------------|--------|
 | 1 · Your mandate | Market, allocation, leverage ceiling, trailing stop, risk tolerance. The agent only acts inside them. | ✅ |
 | 2 · Analytics engine | Index live Flash positions → leader stats + **liquidation heatmap**. | ✅ live (525 positions / 420 leaders) |
-| 3 · Fable scout | One Claude (Fable 5) call: analytics + constraints → squad of 3–5 with per-leader reasoning. Deterministic ranker fallback. | ✅ |
+| 3 · Claude scout | One Claude (Sonnet 4.6) call: analytics + constraints → squad of 3–5 with per-leader reasoning. Deterministic ranker fallback. | ✅ |
 | 4 · Approve to draft | Swipe right to draft a leader, left to skip (buttons too). Nothing trades without approval. | ✅ |
 | 5 · ER guard engine | Anchor program: vault delegated to ER, scaled mirror, **trailing stop fires on-chain at tick speed**, settles to base. | ✅ deployed devnet |
 
 ---
+
+## How it works
+
+```mermaid
+flowchart LR
+  A([Set your mandate]) --> B([Claude scouts a squad])
+  B --> C([Swipe to approve])
+  C --> D([Deploy to ER vault])
+  D --> E([Autonomous guard @500ms])
+  E --> F([Close & settle to base])
+```
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   Flash["Flash Trade<br/>(mainnet)"] -->|getProgramAccounts| IDX[Indexer]
-  IDX -->|leader stats + heatmap| SCOUT["Fable scout"]
+  IDX -->|leader stats + heatmap| SCOUT["Claude scout"]
   SCOUT -->|squad + reasoning| UI["Web app<br/>(Next.js)"]
   UI -->|constraints + approval| API["Bridge / API"]
   API -->|operator-signed txs| ER
@@ -72,6 +85,30 @@ flowchart LR
   end
 
   ER -->|commit / undelegate| BASE["Solana devnet"]
+```
+
+### The autonomous guard, step by step
+
+```mermaid
+sequenceDiagram
+  actor You
+  participant Bridge as Operator bridge
+  participant ER as MagicBlock ER
+  participant Pyth as Pyth Lazer feed
+  participant Base as Solana base
+  You->>Bridge: approve squad
+  Bridge->>Base: init_vault + delegate_vault
+  Base-->>ER: vault delegated
+  Bridge->>ER: open_position (scaled mirror)
+  Bridge->>ER: schedule_stop_crank (ScheduleTask · 500ms)
+  loop every 500ms — zero client transactions
+    ER->>Pyth: read price on-chain
+    ER->>ER: check_trailing_stop — ratchet high-water stop
+    Note over ER: fires protective close on cross
+  end
+  You->>ER: Close & settle
+  ER->>Base: commit_vault + undelegate_vault
+  Base-->>You: state committed · ownership returned
 ```
 
 **The differentiator — the crank.** `schedule_stop_crank` schedules `check_trailing_stop` to run
@@ -147,7 +184,7 @@ the same blessed mirror discipline, plus risk management the leader doesn't have
 
 ## Claude-native: the Slipstream MCP
 
-Slipstream ships an **MCP server** so Claude Code (Fable) becomes your copy-trading copilot — scout
+Slipstream ships an **MCP server** so Claude Code becomes your copy-trading copilot — scout
 the leaderboard, draft a squad, and watch your guarded vaults, all from chat.
 
 ```bash
@@ -166,7 +203,7 @@ trailing-stop status as it ratchets on-chain.
 ## Run it locally
 
 **Prerequisites:** Node 22 + pnpm, a funded **devnet burner** keypair (never your main wallet), and
-optionally an `ANTHROPIC_API_KEY` for the Fable scout (without it, the deterministic ranker is used).
+optionally an `ANTHROPIC_API_KEY` for the Claude scout (without it, the deterministic ranker is used).
 
 ```bash
 # 1. install
@@ -186,7 +223,7 @@ pnpm -C web dev
 ```
 
 Open http://localhost:3000 → set your mandate → draft a squad → watch the guard run on the dashboard
-→ hit **Simulate drawdown** to see the trailing stop fire on-chain.
+→ hit **Replay a winning move** or **Replay drawdown** to see the trailing stop fire on-chain.
 
 **Verify the engine directly (devnet):**
 
@@ -202,7 +239,7 @@ pnpm test:crank   # THE showcase: schedule a 500ms crank, watch ticks climb with
 ```
 programs/copy-engine/   Anchor program — vault, ER guard engine, oracle read, crank
 indexer/                Flash V1 leader discovery (getProgramAccounts) → stats + heatmap
-agent/                  Fable scout — analytics + constraints → squad + reasoning (+ fallback)
+agent/                  Claude scout — analytics + constraints → squad + reasoning (+ fallback)
 bridge/                 ER session lifecycle + scaled mirror + stress driver (operator-signed)
 server/                 Unified HTTP API the web app consumes
 web/                    Next.js 16 + Tailwind v4 + Motion dashboard (3 screens)
@@ -213,7 +250,7 @@ tests/                  Proven devnet lifecycle + crank tests
 
 Anchor · `ephemeral-rollups-sdk` · `magicblock-magic-program-api` (cranks) · Pyth Lazer · Flash
 Trade (V1 program indexing + V2 tx-builder bridge) · Solana web3.js · Next.js 16 · Tailwind v4 ·
-Motion · Claude **Fable 5**.
+Motion · Claude **Sonnet 4.6**.
 
 ## Security
 
@@ -238,9 +275,9 @@ are validated at the API boundary and capped. No secrets in source.
   (`flash/v2.ts` — real tx-builders, collateral-ratio sizing, $11 floor) is wired into the live
   `/mirror-plan` dry-run, **not** the on-chain demo path: the guarded position is a *scaled mirror*
   in the ER vault, not yet a live V2 basket. We never claim otherwise.
-- **The dashboard "adverse replay"** drives a scripted price path via `apply_tick` so the stop fires
-  on demand in seconds — the trailing-stop logic and on-chain Pyth read it exercises are real; the
-  price path is illustrative (labeled on-screen).
+- **The dashboard replays** (a winning move and an adverse drawdown) drive a scripted price path via
+  `apply_tick` so the stop fires on demand in seconds — the trailing-stop logic and on-chain Pyth read
+  they exercise are real; the price path is illustrative (labeled on-screen).
 - **The liquidation heatmap** approximates distance-to-liquidation (V1 open interest; maintenance
   params not modeled) — labeled "approx." in the UI.
 - **Crank cadence is 500ms and the demo is SOL-centric** — both are configuration, not limits.

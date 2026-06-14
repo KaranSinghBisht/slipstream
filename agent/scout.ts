@@ -1,7 +1,7 @@
 /**
- * Fable-powered scout: reads live Flash leader analytics + the follower's
+ * Claude-powered scout: reads live Flash leader analytics + the follower's
  * constraints, proposes a squad of 3–5 leaders with per-leader reasoning.
- * Uses the Claude (Fable) API when ANTHROPIC_API_KEY is set; otherwise falls
+ * Uses the Claude API when ANTHROPIC_API_KEY is set; otherwise falls
  * back to a deterministic ranker so the product always works.
  */
 
@@ -69,10 +69,10 @@ export async function scoutSquad(
 ): Promise<ScoutResult> {
   const ranked = rankLeaders(leaders, constraints).slice(0, 12);
   if (process.env.ANTHROPIC_API_KEY) {
-    // Try Fable first, then a configured fallback (Fable 5 is sometimes gated);
-    // the badge reflects whichever model actually answered.
+    // Default to Sonnet for the demo (Fable 5 is gated); set SCOUT_MODEL to switch.
+    // The badge reflects whichever model actually answered.
     const models = [
-      process.env.SCOUT_MODEL ?? "claude-fable-5",
+      process.env.SCOUT_MODEL ?? "claude-sonnet-4-6",
       process.env.SCOUT_FALLBACK_MODEL ?? "claude-sonnet-4-6",
     ].filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
     for (const model of models) {

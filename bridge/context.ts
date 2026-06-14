@@ -42,6 +42,8 @@ export interface Session {
   chart: ChartPoint[];
   chartFiredAt: number | null;
   crankTaskId?: number;
+  settled?: boolean;
+  demoRealizedUsd?: number | null;
   txs: TxLog[];
 }
 

@@ -57,8 +57,8 @@ export function Intake({ onSubmit }: { onSubmit: (c: Constraints) => void }) {
           <span className="text-muted">The scout trades inside them.</span>
         </h1>
         <p className="max-w-md text-base leading-relaxed text-muted">
-          Pick your market, budget, leverage ceiling and trail. The scout drafts a squad from live
-          Flash leaders — nothing moves until you approve it.
+          The scout reads top traders across <span className="text-fg">all of Flash</span>, then drafts you a squad.
+          Your mirrored position is guarded on the market you pick below — nothing moves until you approve it.
         </p>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted">
           <span className="inline-flex items-center gap-2">
@@ -83,7 +83,7 @@ export function Intake({ onSubmit }: { onSubmit: (c: Constraints) => void }) {
       >
         <Bezel innerClassName="p-6 md:p-7">
           <div className="flex flex-col gap-6">
-            <Segmented label="Market" value={market} options={MARKETS} onChange={setMarket} />
+            <Segmented label="Guarded market" value={market} options={MARKETS} onChange={setMarket} />
 
             <div className="flex flex-col gap-2">
               <Label>Allocation</Label>
