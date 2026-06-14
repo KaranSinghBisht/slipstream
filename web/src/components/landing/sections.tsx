@@ -11,7 +11,7 @@ import {
   SparkleIcon,
 } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
-import { HeroChart } from "@/components/landing/HeroChart";
+import { HeroPreview } from "@/components/landing/HeroPreview";
 
 function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
   return (
@@ -27,68 +27,54 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
   );
 }
 
+const ctaPrimary =
+  "group inline-flex items-center gap-2 rounded-full bg-flash px-6 py-3 text-sm font-semibold tracking-tight transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]";
+
+function Arrow() {
+  return (
+    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/15 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-px">
+      <ArrowRightIcon size={14} weight="bold" />
+    </span>
+  );
+}
+
 export function Hero() {
   return (
-    <section className="mx-auto grid min-h-[100dvh] w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 pb-16 pt-28 lg:grid-cols-[1.05fr_0.95fr]">
+    <section className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-24 pt-36 text-center">
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col gap-6"
+        className="flex flex-col items-center gap-6"
       >
-        <span className="w-fit rounded-full bg-white/[0.04] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted ring-1 ring-line">
-          AI-scouted · you-approved · on-chain-guarded
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-tight text-muted ring-1 ring-line">
+          <LightningIcon size={13} weight="fill" className="text-accent" />
+          Built on Flash Trade × MagicBlock
         </span>
-        <h1 className="text-balance text-5xl font-semibold leading-[1.02] tracking-tight text-fg md:text-7xl">
+        <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.0] tracking-tight text-fg md:text-7xl">
           Draft the best traders on Flash.
           <br />
-          <span className="text-muted">Your guard never leaves the chain.</span>
+          <span className="text-gradient">Your guard lives on-chain.</span>
         </h1>
-        <p className="max-w-md text-lg leading-relaxed text-muted">
-          An AI scout reads the live leaderboard, you approve the squad, and an autonomous trailing stop
-          fires inside a MagicBlock rollup — 50ms after the tick.
+        <p className="max-w-xl text-lg leading-relaxed text-muted">
+          An AI scout reads the live leaderboard, you approve the squad, and an autonomous trailing
+          stop fires inside a MagicBlock rollup, 50ms after the tick.
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/app"
-            className="group inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold tracking-tight text-[#04130d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#43e0a6] active:scale-[0.98]"
-          >
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link href="/app" className={ctaPrimary}>
             Launch app
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/15 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-px">
-              <ArrowRightIcon size={14} weight="bold" />
-            </span>
+            <Arrow />
           </Link>
           <a
-            href="#guard"
+            href="#how"
             className="rounded-full bg-white/[0.04] px-6 py-3 text-sm font-semibold tracking-tight text-fg ring-1 ring-line transition-colors hover:bg-white/[0.08]"
           >
-            See the guard
+            How it works
           </a>
         </div>
-        <p className="font-mono text-[11px] text-faint">
-          Powered by MagicBlock Ephemeral Rollups · Flash Trade · Pyth Lazer
-        </p>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 26 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <Bezel innerClassName="flex flex-col gap-4 p-6">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-faint">Guarded vs held</span>
-            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-accent">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent pulse-ring" /> stop fired on-chain
-            </span>
-          </div>
-          <HeroChart />
-          <p className="text-sm leading-relaxed text-muted">
-            Same trade, two outcomes: your stop locked at <span className="font-mono text-long">−2.3%</span> while the
-            leader rode it down to <span className="font-mono text-short">−8.2%</span>.
-          </p>
-        </Bezel>
-      </motion.div>
+      <HeroPreview />
     </section>
   );
 }
@@ -105,14 +91,16 @@ export function HowItWorks() {
     <section id="how" className="mx-auto w-full max-w-6xl px-6 py-24">
       <Reveal>
         <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-fg md:text-4xl">
-          Copy trading you actually control.
+          Copy trading you actually <span className="text-gradient">control</span>.
         </h2>
       </Reveal>
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
           <Reveal key={s.title} delay={i * 0.08}>
-            <Bezel innerClassName="flex h-full flex-col gap-3 p-5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/12 text-accent">{s.icon}</div>
+            <Bezel className="group transition-shadow duration-500 hover:ring-1 hover:ring-accent/30" innerClassName="flex h-full flex-col gap-3 p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/12 text-accent transition-colors group-hover:bg-accent/20">
+                {s.icon}
+              </div>
               <span className="font-mono text-xs text-faint">0{i + 1}</span>
               <h3 className="text-base font-semibold tracking-tight text-fg">{s.title}</h3>
               <p className="text-sm leading-relaxed text-muted">{s.body}</p>
@@ -134,13 +122,13 @@ const GUARD_STATS = [
 export function Guard() {
   return (
     <section id="guard" className="mx-auto w-full max-w-6xl px-6 py-24">
-      <Bezel innerClassName="flex flex-col gap-10 p-8 md:p-12">
+      <Bezel className="glow-flash" innerClassName="flex flex-col gap-10 p-8 md:p-12">
         <Reveal className="flex max-w-2xl flex-col gap-5">
           <span className="inline-flex w-fit items-center gap-2 text-sm text-accent">
             <LightningIcon size={16} weight="fill" /> The differentiator
           </span>
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-tight text-fg md:text-5xl">
-            The guard runs itself.
+            The guard <span className="text-gradient">runs itself</span>.
           </h2>
           <p className="text-lg leading-relaxed text-muted">
             <span className="font-mono text-fg">check_trailing_stop</span> is scheduled inside the Ephemeral Rollup. It
@@ -172,7 +160,9 @@ export function Mcp() {
         <span className="inline-flex w-fit items-center gap-2 text-sm text-accent">
           <SparkleIcon size={16} weight="fill" /> Claude-native
         </span>
-        <h2 className="text-3xl font-semibold tracking-tight text-fg md:text-4xl">Watch it from Claude Code.</h2>
+        <h2 className="text-3xl font-semibold tracking-tight text-fg md:text-4xl">
+          Watch it from <span className="text-gradient">Claude Code</span>.
+        </h2>
         <p className="text-lg leading-relaxed text-muted">
           Slipstream ships an MCP server, so Fable becomes your copy-trading copilot — scout, follow, and monitor your
           guarded vaults without leaving chat.
@@ -186,7 +176,7 @@ export function Mcp() {
         </div>
       </Reveal>
       <Reveal delay={0.1}>
-        <Bezel innerClassName="flex flex-col gap-3 p-5 font-mono text-[13px] leading-relaxed">
+        <Bezel className="glow-flash" innerClassName="flex flex-col gap-3 p-5 font-mono text-[13px] leading-relaxed">
           <div className="flex gap-1.5 pb-1">
             <span className="h-2.5 w-2.5 rounded-full bg-short/70" />
             <span className="h-2.5 w-2.5 rounded-full bg-warn/70" />
@@ -205,18 +195,13 @@ export function Mcp() {
 export function LandingFooter() {
   return (
     <footer className="border-t border-line/60">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-6 py-16 text-center">
-        <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-fg md:text-3xl">
-          Draft your squad. Keep your stop on-chain.
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-6 py-20 text-center">
+        <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-fg md:text-4xl">
+          Draft your squad. <span className="text-gradient">Keep your stop on-chain.</span>
         </h2>
-        <Link
-          href="/app"
-          className="group inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold tracking-tight text-[#04130d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#43e0a6] active:scale-[0.98]"
-        >
+        <Link href="/app" className={ctaPrimary}>
           Launch app
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/15 transition-transform duration-300 group-hover:translate-x-0.5">
-            <ArrowRightIcon size={14} weight="bold" />
-          </span>
+          <Arrow />
         </Link>
         <p className="font-mono text-[11px] text-faint">
           live Flash leader data on mainnet · ER trailing-stop engine on devnet · built on MagicBlock Ephemeral Rollups

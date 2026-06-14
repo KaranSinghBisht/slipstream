@@ -13,3 +13,6 @@ keypairs/
 *.json.key
 .omc/
 .claude/
+refs/
+scripts/shoot*.mjs
+scripts/capture-refs.mjs

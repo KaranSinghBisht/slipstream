@@ -1,5 +1,6 @@
 import { Backdrop } from "@/components/Backdrop";
 import { LandingNav } from "@/components/landing/LandingNav";
+import { LeaderTicker } from "@/components/landing/LeaderTicker";
 import { Guard, Hero, HowItWorks, Mcp, LandingFooter } from "@/components/landing/sections";
 
 export default function Landing() {
@@ -9,6 +10,7 @@ export default function Landing() {
       <LandingNav />
       <main className="flex flex-col">
         <Hero />
+        <LeaderTicker />
         <HowItWorks />
         <Guard />
         <Mcp />

@@ -22,6 +22,7 @@
   --color-short: #fb7185;
   --color-danger: #f43f5e;
   --color-warn: #fbbf24;
+  --color-lime: #c2f25e;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -54,6 +55,26 @@ body {
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Flash-aligned green→lime signature gradient — headline accent + primary CTA. */
+.text-gradient {
+  background: linear-gradient(98deg, #e6ff96 0%, #8ef0b0 42%, #34d399 84%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.bg-flash {
+  background: linear-gradient(98deg, #c2f25e 2%, #34d399 80%);
+  color: #04130d;
+}
+.bg-flash:hover {
+  filter: brightness(1.07) saturate(1.04);
+}
+/* Soft green product glow under floating panels (Flash / Drift hero feel). */
+.glow-flash {
+  box-shadow: 0 50px 140px -28px rgba(52, 211, 153, 0.38);
 }
 
 /* Concentric "machined hardware" bezel — outer shell + inner core. */
@@ -112,9 +133,25 @@ body {
   animation: pulse-ring 2s var(--ease-expo) infinite;
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee 42s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-sweep,
-  .pulse-ring {
+  .pulse-ring,
+  .animate-marquee {
     animation: none;
   }
 }

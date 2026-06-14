@@ -29,7 +29,7 @@ export function LandingNav() {
           </a>
           <Link
             href="/app"
-            className="group inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold tracking-tight text-[#04130d] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#43e0a6] active:scale-[0.98]"
+            className="group inline-flex items-center gap-2 rounded-full bg-flash px-4 py-2 text-sm font-semibold tracking-tight transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
           >
             Launch app
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/15 transition-transform duration-300 group-hover:translate-x-0.5">
