@@ -102,6 +102,30 @@ on-chain (`oracle.rs`) and client-side.
 
 ---
 
+## Built on `flash-trade/examples-v2`
+
+The Flash judge's reference repo ([flash-trade/examples-v2](https://github.com/flash-trade/examples-v2))
+ships a `copy-trade` example — mirror a leader's V2 basket, non-custodially. Slipstream is the
+product layer on top of it:
+
+- **Leader analytics** index Flash **V1** (the large, liquid population — 500+ live positions) for
+  the leaderboard + liquidation heatmap the scout reasons over.
+- **Mirror semantics** follow the example's hard-won discipline, ported in `flash/mirror-plan.ts`:
+  diff baskets → `OPEN / GROW / SHRINK / CLOSE`, **size by collateral ratio (never raw size)**,
+  hard-cap each mirror, and respect the **$11 collateral floor** (GOTCHAS §14) — too-small mirrors
+  are skipped, not faked.
+- **The V2 trade leg is real:** `flash/v2.ts` is a faithful client for the live V2 REST API
+  (`/v2/owner`, `/v2/transaction-builder/*`, with `err`-in-200 handling). Dry-run the plan for any
+  leader:
+
+  ```bash
+  pnpm mirror-plan <leaderPubkey> 1000 100      # or: GET /mirror-plan?owner=…&allocationUsd=…
+  ```
+
+Slipstream's twist: instead of replaying the mirror straight onto Flash, it routes the **approved**
+mirror through the ER guard vault, which adds the autonomous on-chain trailing stop, then settles —
+the same blessed mirror discipline, plus risk management the leader doesn't have.
+
 ## Run it locally
 
 **Prerequisites:** Node 22 + pnpm, a funded **devnet burner** keypair (never your main wallet), and

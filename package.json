@@ -7,7 +7,8 @@
     "test:er": "tsx tests/er-roundtrip.ts",
     "test:crank": "tsx tests/oracle-crank.ts",
     "indexer": "tsx indexer/server.ts",
-    "api": "tsx server/index.ts"
+    "api": "tsx server/index.ts",
+    "mirror-plan": "tsx scripts/v2-mirror-plan.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",

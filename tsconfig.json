@@ -14,7 +14,9 @@
     "indexer/**/*.ts",
     "server/**/*.ts",
     "agent/**/*.ts",
-    "bridge/**/*.ts"
+    "bridge/**/*.ts",
+    "flash/**/*.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": ["node_modules", "web", "dist"]
 }

@@ -19,6 +19,8 @@ import http from "node:http";
 import { Connection } from "@solana/web3.js";
 import { LivePosition, buildHeatmap, buildLeaderboard, fetchLivePositions } from "../indexer/flash.js";
 import { scoutSquad } from "../agent/scout.js";
+import { ownerSnapshot } from "../flash/v2.js";
+import { planFreshMirror } from "../flash/mirror-plan.js";
 import { getSession } from "../bridge/context.js";
 import { getVaultState, startSession } from "../bridge/session.js";
 import { followSquad, stress } from "../bridge/mirror.js";
@@ -62,6 +64,23 @@ async function route(req: http.IncomingMessage, res: http.ServerResponse): Promi
   }
   if (p === "/leaders") return json(res, buildLeaderboard(positions).slice(0, 50));
   if (p === "/heatmap") return json(res, buildHeatmap(positions));
+
+  // Live, dry-run Flash V2 mirror plan (examples-v2 copy-trade pattern): pull a
+  // leader's live V2 basket and size the mirror by collateral ratio + $11 floor.
+  if (p === "/mirror-plan") {
+    const owner = reqString(url, "owner");
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(owner)) throw new Error("invalid owner pubkey");
+    const allocationUsd = Math.min(1_000_000, Math.max(1, Number(url.searchParams.get("allocationUsd") ?? 1000)));
+    const maxFollowUsd = Math.min(100_000, Math.max(1, Number(url.searchParams.get("maxFollowUsd") ?? 100)));
+    const snap = await ownerSnapshot(owner);
+    return json(res, {
+      owner,
+      network: "mainnet",
+      livePositions: Object.keys(snap.positionMetrics ?? {}).length,
+      intents: planFreshMirror(snap, allocationUsd, maxFollowUsd),
+      note: "dry-run from live Flash V2; the guarded mirror routes through the ER vault",
+    });
+  }
 
   const ownerMatch = p.match(/^\/positions\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
   if (ownerMatch) return json(res, positions.filter((x) => x.owner === ownerMatch[1]));
