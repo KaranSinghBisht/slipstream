@@ -12,4 +12,4 @@ test-ledger/
 keypairs/
 *.json.key
 .omc/
-.claude/skills/.omc/
+.claude/

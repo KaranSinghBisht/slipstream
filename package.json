@@ -12,7 +12,8 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",
     "@magicblock-labs/ephemeral-rollups-sdk": "^0.14.3",
-    "@solana/web3.js": "^1.98.0"
+    "@solana/web3.js": "^1.98.0",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

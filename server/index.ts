@@ -14,6 +14,7 @@
  *
  * Run: pnpm api
  */
+import "dotenv/config";
 import http from "node:http";
 import { Connection } from "@solana/web3.js";
 import { LivePosition, buildHeatmap, buildLeaderboard, fetchLivePositions } from "../indexer/flash.js";
