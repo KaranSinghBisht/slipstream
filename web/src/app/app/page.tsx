@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Backdrop } from "@/components/Backdrop";
 import { Brand } from "@/components/Brand";
 import { Stepper } from "@/components/Stepper";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { Intake } from "@/screens/Intake";
 import { Scout } from "@/screens/Scout";
 import { Dashboard } from "@/screens/Dashboard";
@@ -53,8 +54,10 @@ export default function AppPage() {
           <Link href="/" className="transition-opacity hover:opacity-80">
             <Brand />
           </Link>
-          <div className="flex items-center gap-4">
-            <Stepper active={STAGE_INDEX[stage]} />
+          <div className="flex items-center gap-3">
+            <div className="hidden md:block">
+              <Stepper active={STAGE_INDEX[stage]} />
+            </div>
             {stage !== "intake" && (
               <button
                 onClick={reset}
@@ -63,6 +66,7 @@ export default function AppPage() {
                 <ArrowLeftIcon size={12} weight="bold" /> Restart
               </button>
             )}
+            <ConnectButton />
           </div>
         </div>
       </header>

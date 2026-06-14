@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { AnimatePresence, motion } from "motion/react";
 import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
@@ -15,6 +16,7 @@ export function Dashboard({ session }: { session: SessionInfo }) {
   const [v, setV] = useState<VaultState | null>(null);
   const [stressing, setStressing] = useState(false);
   const busy = useRef(false);
+  const { publicKey } = useWallet();
 
   useEffect(() => {
     let live = true;
@@ -100,6 +102,11 @@ export function Dashboard({ session }: { session: SessionInfo }) {
                   {v.market} {v.side}
                 </span>
                 <span className="font-mono text-xs text-faint">vault {addr(v.vault, 4)}</span>
+                {publicKey && (
+                  <span className="hidden font-mono text-xs text-faint sm:inline">
+                    · managed for {addr(publicKey.toBase58(), 4)}
+                  </span>
+                )}
               </div>
               <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted">
                 <BroadcastIcon size={13} className="text-accent" /> {v.erUrl.replace(/^https?:\/\//, "").split(".")[0]}
