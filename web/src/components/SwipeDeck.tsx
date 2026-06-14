@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { AnimatePresence, motion, useMotionValue, useTransform, type MotionValue } from "motion/react";
-import { CheckIcon, GaugeIcon, ShieldIcon, SparkleIcon, StackIcon, TrendUpIcon, XIcon } from "@phosphor-icons/react";
-import { Bezel } from "@/components/ui/Bezel";
+import { CheckIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
 import { addr, compactUsd, pct } from "@/lib/format";
 import type { LeaderStats } from "@/lib/types";
 
+const CARD = "flex h-full flex-col overflow-hidden rounded-[14px] border border-line-strong bg-[#0c0f17] p-6";
+
 function strategyOf(l: LeaderStats): string {
-  if (l.avgLeverage >= 10) return "High-leverage";
+  if (l.avgLeverage >= 10) return "High leverage";
   if (l.liqDistancePct >= 40) return "Capital preservation";
   if (l.notionalUsd >= 100_000) return "High conviction";
   if (l.markets.length >= 2) return "Diversified";
@@ -29,7 +30,7 @@ export function SwipeDeck({ leaders, onComplete }: { leaders: LeaderStats[]; onC
   }
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex w-full max-w-[360px] flex-col items-center gap-5">
       <div className="flex items-center gap-3 font-mono text-xs">
         <span className="text-faint">
           {Math.min(i + 1, leaders.length)} / {leaders.length}
@@ -37,27 +38,24 @@ export function SwipeDeck({ leaders, onComplete }: { leaders: LeaderStats[]; onC
         <span className="text-accent">{kept.length} drafted</span>
       </div>
 
-      <div className="relative h-[400px] w-full max-w-sm">
+      <div className="relative h-[420px] w-full">
         {behind.map((l, idx) => (
           <div
             key={l.owner}
-            className="absolute inset-0"
-            style={{ transform: `scale(${1 - (idx + 1) * 0.04}) translateY(${(idx + 1) * 14}px)`, zIndex: 1, opacity: 1 - (idx + 1) * 0.3 }}
-          >
-            <Card leader={l} />
-          </div>
+            aria-hidden
+            className="absolute inset-0 rounded-[14px] border border-line bg-[#0a0c12]"
+            style={{ transform: `scale(${1 - (idx + 1) * 0.045}) translateY(${(idx + 1) * 16}px)`, zIndex: 1, opacity: 0.6 - idx * 0.25 }}
+          />
         ))}
-        <AnimatePresence>
-          {!done && <TopCard key={leaders[i].owner} leader={leaders[i]} dir={dir} onDecide={decide} />}
-        </AnimatePresence>
+        <AnimatePresence>{!done && <TopCard key={leaders[i].owner} leader={leaders[i]} dir={dir} onDecide={decide} />}</AnimatePresence>
         {done && (
-          <Bezel className="absolute inset-0" innerClassName="flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className={`${CARD} absolute inset-0 items-center justify-center gap-4 text-center`}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/12 text-accent">
               <SparkleIcon size={24} weight="fill" />
             </span>
             <p className="text-sm font-semibold tracking-tight text-fg">You drafted {kept.length} leaders.</p>
-            <p className="max-w-xs text-sm text-muted">Fable will analyse their live positions and propose how to size them.</p>
-          </Bezel>
+            <p className="max-w-xs text-sm text-muted">Fable will analyse their live positions and size your squad.</p>
+          </div>
         )}
       </div>
 
@@ -85,7 +83,7 @@ export function SwipeDeck({ leaders, onComplete }: { leaders: LeaderStats[]; onC
 
 function TopCard({ leader, dir, onDecide }: { leader: LeaderStats; dir: 1 | -1; onDecide: (keep: boolean) => void }) {
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-11, 11]);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
   const keepOp = useTransform(x, [30, 130], [0, 1]);
   const passOp = useTransform(x, [-130, -30], [1, 0]);
   return (
@@ -94,12 +92,12 @@ function TopCard({ leader, dir, onDecide }: { leader: LeaderStats; dir: 1 | -1; 
       style={{ x, rotate }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.55}
+      dragElastic={0.5}
       onDragEnd={(_, info) => {
         if (info.offset.x > 110) onDecide(true);
         else if (info.offset.x < -110) onDecide(false);
       }}
-      initial={{ scale: 0.96, opacity: 0, y: 10 }}
+      initial={{ scale: 0.97, opacity: 0, y: 10 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ x: dir * 480, opacity: 0, rotate: dir * 16, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }}
     >
@@ -108,17 +106,9 @@ function TopCard({ leader, dir, onDecide }: { leader: LeaderStats; dir: 1 | -1; 
   );
 }
 
-function Card({
-  leader,
-  keepOp,
-  passOp,
-}: {
-  leader: LeaderStats;
-  keepOp?: MotionValue<number>;
-  passOp?: MotionValue<number>;
-}) {
+function Card({ leader, keepOp, passOp }: { leader: LeaderStats; keepOp?: MotionValue<number>; passOp?: MotionValue<number> }) {
   return (
-    <Bezel className="h-full" innerClassName="relative flex h-full flex-col gap-5 overflow-hidden p-6">
+    <div className={CARD} style={{ boxShadow: "0 30px 70px -32px rgba(0,0,0,0.95)" }}>
       {keepOp && (
         <motion.span style={{ opacity: keepOp }} className="absolute right-5 top-5 z-10 rounded-md border-2 border-accent px-2 py-0.5 text-sm font-bold uppercase tracking-wide text-accent">
           Draft
@@ -129,45 +119,40 @@ function Card({
           Pass
         </motion.span>
       )}
+
       <div className="flex items-center justify-between">
-        <span className="rounded-md bg-accent/12 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
+        <span className="whitespace-nowrap rounded-md bg-accent/12 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
           {strategyOf(leader)}
         </span>
-        <span className="font-mono text-sm text-muted">{addr(leader.owner, 5)}</span>
+        <span className="font-mono text-xs text-muted">{addr(leader.owner, 4)}</span>
       </div>
 
-      <div className="mt-2">
+      <div className="mt-8">
         <div className="text-[10px] uppercase tracking-wider text-faint">Open notional</div>
-        <div className="font-mono text-5xl font-semibold tracking-tight text-fg tnum">{compactUsd(leader.notionalUsd)}</div>
+        <div className="whitespace-nowrap font-mono text-4xl font-semibold tracking-tight text-fg tnum">{compactUsd(leader.notionalUsd)}</div>
       </div>
 
-      <div className="mt-auto grid grid-cols-2 gap-4">
-        <Stat icon={<GaugeIcon size={15} />} label="Avg leverage" value={`${leader.avgLeverage.toFixed(1)}×`} />
-        <Stat icon={<ShieldIcon size={15} />} label="Liq buffer" value={pct(leader.liqDistancePct, 0)} />
-        <Stat icon={<StackIcon size={15} />} label="Positions" value={`${leader.positions}`} />
-        <Stat icon={<TrendUpIcon size={15} />} label="Markets" value={`${leader.markets.length}`} />
+      <div className="mt-auto grid grid-cols-2 gap-x-6 gap-y-5">
+        <Stat label="Avg leverage" value={`${leader.avgLeverage.toFixed(1)}×`} />
+        <Stat label="Liq buffer" value={pct(leader.liqDistancePct, 0)} />
+        <Stat label="Positions" value={`${leader.positions}`} />
+        <Stat label="Markets" value={`${leader.markets.length}`} />
       </div>
-    </Bezel>
+    </div>
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-faint">
-        <span className="text-muted">{icon}</span>
-        {label}
-      </span>
+      <span className="text-[10px] uppercase tracking-wider text-faint">{label}</span>
       <span className="font-mono text-xl font-semibold text-fg tnum">{value}</span>
     </div>
   );
 }
 
 function DeckButton({ children, onClick, disabled, variant }: { children: React.ReactNode; onClick: () => void; disabled: boolean; variant: "keep" | "pass" }) {
-  const color =
-    variant === "keep"
-      ? "text-accent ring-accent/30 hover:bg-accent/10"
-      : "text-short ring-short/30 hover:bg-short/10";
+  const color = variant === "keep" ? "text-accent ring-accent/40 hover:bg-accent/10" : "text-short ring-short/40 hover:bg-short/10";
   return (
     <button
       onClick={onClick}

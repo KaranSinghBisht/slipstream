@@ -4,8 +4,7 @@ import { ArrowRightIcon } from "@phosphor-icons/react";
 type Variant = "primary" | "ghost" | "danger";
 
 const STYLES: Record<Variant, string> = {
-  primary:
-    "bg-accent text-[#04130d] hover:bg-[#43e0a6] disabled:bg-accent/40 disabled:text-[#04130d]/60",
+  primary: "bg-flash disabled:opacity-50",
   ghost: "bg-white/[0.04] text-fg ring-1 ring-line hover:bg-white/[0.08]",
   danger: "bg-short text-[#1a0508] hover:bg-[#ff8a9c]",
 };
