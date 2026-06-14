@@ -9,5 +9,12 @@
     "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["tests/**/*.ts", "indexer/**/*.ts"]
+  "include": [
+    "tests/**/*.ts",
+    "indexer/**/*.ts",
+    "server/**/*.ts",
+    "agent/**/*.ts",
+    "bridge/**/*.ts"
+  ],
+  "exclude": ["node_modules", "web", "dist"]
 }
