@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "slipstream": {
+      "command": "npx",
+      "args": ["tsx", "mcp/server.ts"],
+      "env": { "SLIPSTREAM_API": "http://localhost:8787" }
+    }
+  }
+}

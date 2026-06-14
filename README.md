@@ -138,6 +138,24 @@ Slipstream's twist: instead of replaying the mirror straight onto Flash, it rout
 mirror through the ER guard vault, which adds the autonomous on-chain trailing stop, then settles —
 the same blessed mirror discipline, plus risk management the leader doesn't have.
 
+## Claude-native: the Slipstream MCP
+
+Slipstream ships an **MCP server** so Claude Code (Fable) becomes your copy-trading copilot — scout
+the leaderboard, draft a squad, and watch your guarded vaults, all from chat.
+
+```bash
+pnpm api                                       # the API the MCP wraps
+# Claude Code auto-discovers .mcp.json, or add it manually:
+claude mcp add slipstream -- npx tsx mcp/server.ts
+```
+
+Tools: `slipstream_leaders` · `slipstream_heatmap` · `slipstream_scout` · `slipstream_follow` ·
+`slipstream_sessions` · `slipstream_status` · `slipstream_simulate_drawdown` · `slipstream_mirror_plan`.
+
+Then, in Claude Code: *"Scout SOL leaders for a $1k conservative book, follow the top 3, and watch my
+guard."* — Claude scouts, provisions a guarded ER vault, mirrors the squad, and reports the live
+trailing-stop status as it ratchets on-chain.
+
 ## Run it locally
 
 **Prerequisites:** Node 22 + pnpm, a funded **devnet burner** keypair (never your main wallet), and

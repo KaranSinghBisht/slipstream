@@ -71,6 +71,10 @@ export function getSession(id: string): Session {
   return s;
 }
 
+export function listSessions(): Session[] {
+  return [...sessions.values()];
+}
+
 export function logTx(s: Session, kind: string, sig: string, ms: number, detail: string): void {
   s.txs.unshift({ kind, sig, ms, ts: Date.now(), detail });
   s.txs = s.txs.slice(0, 24);

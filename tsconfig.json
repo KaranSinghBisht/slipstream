@@ -16,7 +16,8 @@
     "agent/**/*.ts",
     "bridge/**/*.ts",
     "flash/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "mcp/**/*.ts"
   ],
   "exclude": ["node_modules", "web", "dist"]
 }

@@ -21,7 +21,7 @@ import { LivePosition, buildHeatmap, buildLeaderboard, fetchLivePositions } from
 import { scoutSquad } from "../agent/scout.js";
 import { ownerSnapshot } from "../flash/v2.js";
 import { planFreshMirror } from "../flash/mirror-plan.js";
-import { getSession } from "../bridge/context.js";
+import { getSession, listSessions } from "../bridge/context.js";
 import { getVaultState, startSession } from "../bridge/session.js";
 import { followSquad, stress } from "../bridge/mirror.js";
 import { json, readJson, sendError } from "./http.js";
@@ -85,6 +85,19 @@ async function route(req: http.IncomingMessage, res: http.ServerResponse): Promi
   const ownerMatch = p.match(/^\/positions\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
   if (ownerMatch) return json(res, positions.filter((x) => x.owner === ownerMatch[1]));
 
+  if (p === "/sessions") {
+    return json(
+      res,
+      listSessions().map((s) => ({
+        session: s.id,
+        owner: s.owner.publicKey.toBase58(),
+        vault: s.vault.toBase58(),
+        market: s.constraints.market,
+        followed: s.followed,
+        crankActive: s.crankTaskId !== undefined,
+      }))
+    );
+  }
   if (p === "/scout" && req.method === "POST") {
     const body = await readJson(req);
     const c = validateConstraints(body?.constraints);

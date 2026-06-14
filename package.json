@@ -8,13 +8,16 @@
     "test:crank": "tsx tests/oracle-crank.ts",
     "indexer": "tsx indexer/server.ts",
     "api": "tsx server/index.ts",
-    "mirror-plan": "tsx scripts/v2-mirror-plan.ts"
+    "mirror-plan": "tsx scripts/v2-mirror-plan.ts",
+    "mcp": "tsx mcp/server.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",
     "@magicblock-labs/ephemeral-rollups-sdk": "^0.14.3",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@solana/web3.js": "^1.98.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
