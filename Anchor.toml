@@ -1,0 +1,18 @@
+[toolchain]
+anchor_version = "1.0.2"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+copy_engine = "3yqVR6fFZVxwKy5CqY968ZdVKJWVtqr4jANi98NmVovz"
+
+[provider]
+cluster = "devnet"
+wallet = "keypairs/burner-devnet.json"
+
+[scripts]
+test = "pnpm exec tsx tests/er-roundtrip.ts"
+
+[hooks]

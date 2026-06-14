@@ -1,0 +1,23 @@
+[package]
+name = "copy-engine"
+version = "0.1.0"
+description = "ER-guarded copy-trading engine for Solana Blitz v5"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "copy_engine"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
+ephemeral-rollups-sdk = { version = "0.14.3", features = ["anchor"] }
+magicblock-magic-program-api = { version = "0.10.1", default-features = false }
+bincode = "1.3"

@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+.env*.local
+target/
+dist/
+.next/
+.anchor/
+test-ledger/
+*.so
+.DS_Store
+keypairs/
+*.json.key
+.omc/
+.claude/skills/.omc/
