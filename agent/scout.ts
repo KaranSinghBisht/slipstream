@@ -33,12 +33,12 @@ export interface SquadPick {
 }
 
 export interface ScoutResult {
-  mode: "fable" | "rule";
+  mode: "ai" | "rule";
+  model?: string;
   summary: string;
   squad: SquadPick[];
 }
 
-const SCOUT_MODEL = process.env.SCOUT_MODEL ?? "claude-fable-5";
 const ROLES = ["Anchor", "Core", "Core", "Satellite", "Hedge"];
 const MIN_NOTIONAL = 10_000; // skip dust books unless the pool is thin
 
@@ -48,10 +48,18 @@ export async function scoutSquad(
 ): Promise<ScoutResult> {
   const ranked = rankLeaders(leaders, constraints).slice(0, 12);
   if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      return await fableSquad(ranked, constraints);
-    } catch (err) {
-      process.stderr.write(`[scout] fable fallback: ${(err as Error).message}\n`);
+    // Try Fable first, then a configured fallback (Fable 5 is sometimes gated);
+    // the badge reflects whichever model actually answered.
+    const models = [
+      process.env.SCOUT_MODEL ?? "claude-fable-5",
+      process.env.SCOUT_FALLBACK_MODEL ?? "claude-sonnet-4-6",
+    ].filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
+    for (const model of models) {
+      try {
+        return await aiSquad(ranked, constraints, model);
+      } catch (err) {
+        process.stderr.write(`[scout] ${model} unavailable: ${(err as Error).message}\n`);
+      }
     }
   }
   return ruleBasedSquad(ranked, constraints);
@@ -131,7 +139,7 @@ function ruleBasedSquad(ranked: LeaderLike[], c: Constraints): ScoutResult {
   return { mode: "rule", summary, squad };
 }
 
-async function fableSquad(ranked: LeaderLike[], c: Constraints): Promise<ScoutResult> {
+async function aiSquad(ranked: LeaderLike[], c: Constraints, model: string): Promise<ScoutResult> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15_000);
   try {
@@ -144,7 +152,7 @@ async function fableSquad(ranked: LeaderLike[], c: Constraints): Promise<ScoutRe
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: SCOUT_MODEL,
+        model,
         max_tokens: 1200,
         system:
           "You are a perps copy-trading scout. Given live Flash Trade leader analytics and a " +
@@ -163,7 +171,7 @@ async function fableSquad(ranked: LeaderLike[], c: Constraints): Promise<ScoutRe
     if (!res.ok) throw new Error(`anthropic ${res.status}`);
     const body = (await res.json()) as { content?: { text?: string }[] };
     const text = body.content?.map((b) => b.text ?? "").join("") ?? "";
-    return parseFable(text, ranked);
+    return { ...parseFable(text, ranked), model };
   } finally {
     clearTimeout(timer);
   }
@@ -196,5 +204,5 @@ function parseFable(text: string, ranked: LeaderLike[]): ScoutResult {
       };
     });
   if (squad.length < 3) throw new Error("scout returned too few valid leaders");
-  return { mode: "fable", summary: parsed.summary, squad };
+  return { mode: "ai", summary: parsed.summary, squad };
 }

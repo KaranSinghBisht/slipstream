@@ -41,7 +41,8 @@ export interface SquadPick {
 }
 
 export interface ScoutResult {
-  mode: "fable" | "rule";
+  mode: "ai" | "rule";
+  model?: string;
   summary: string;
   squad: SquadPick[];
 }

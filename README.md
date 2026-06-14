@@ -41,7 +41,7 @@ below.
 | 1 · Your mandate | Market, allocation, leverage ceiling, trailing stop, risk tolerance. The agent only acts inside them. | ✅ |
 | 2 · Analytics engine | Index live Flash positions → leader stats + **liquidation heatmap**. | ✅ live (525 positions / 420 leaders) |
 | 3 · Fable scout | One Claude (Fable 5) call: analytics + constraints → squad of 3–5 with per-leader reasoning. Deterministic ranker fallback. | ✅ |
-| 4 · Approve to draft | Leader cards, you draft who to follow. Nothing trades without approval. | ✅ |
+| 4 · Approve to draft | Swipe right to draft a leader, left to skip (buttons too). Nothing trades without approval. | ✅ |
 | 5 · ER guard engine | Anchor program: vault delegated to ER, scaled mirror, **trailing stop fires on-chain at tick speed**, settles to base. | ✅ deployed devnet |
 
 ---
@@ -72,6 +72,10 @@ flowchart LR
 oracle account on-chain and ratchets/fires the stop with **zero client transactions** — proven on
 devnet at **63 autonomous on-chain ticks in 31 seconds**. That is the demo money shot: protective
 risk decisions executing autonomously on-chain at tick speed, no external keeper.
+
+**The proof — guarded vs held.** The dashboard charts your equity against the leader's hold-through
+path on the same price scenario. The two lines track together through the drawdown, then yours locks
+at the stop while the leader's keeps bleeding — the value of the guard, drawn live.
 
 ---
 

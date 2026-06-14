@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
-import { SparkleIcon, SpinnerGapIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { AnimatePresence, motion } from "motion/react";
+import { HandSwipeRightIcon, SparkleIcon, SpinnerGapIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
 import { LeaderCard } from "@/components/LeaderCard";
@@ -9,6 +9,13 @@ import { Heatmap } from "@/components/Heatmap";
 import { api } from "@/lib/api";
 import { addr } from "@/lib/format";
 import type { Constraints, HeatmapBin, ScoutResult, SessionInfo } from "@/lib/types";
+
+const MODEL_NAMES: Record<string, string> = {
+  "claude-fable-5": "Fable 5",
+  "claude-sonnet-4-6": "Claude Sonnet 4.6",
+  "claude-opus-4-8": "Claude Opus 4.8",
+};
+const prettyModel = (m?: string) => (m ? (MODEL_NAMES[m] ?? "Claude") : "Heuristic");
 
 export function Scout({
   constraints,
@@ -25,6 +32,7 @@ export function Scout({
   const [bins, setBins] = useState<HeatmapBin[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<Set<string>>(new Set());
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [deploying, setDeploying] = useState(false);
 
   useEffect(() => {
@@ -41,7 +49,14 @@ export function Scout({
     };
   }, [constraints]);
 
-  const picks = useMemo(() => result?.squad.filter((p) => approved.has(p.owner)) ?? [], [result, approved]);
+  const visible = useMemo(
+    () => result?.squad.filter((p) => !skipped.has(p.owner)) ?? [],
+    [result, skipped]
+  );
+  const picks = useMemo(
+    () => result?.squad.filter((p) => approved.has(p.owner) && !skipped.has(p.owner)) ?? [],
+    [result, approved, skipped]
+  );
 
   function toggle(owner: string) {
     setApproved((prev) => {
@@ -50,6 +65,18 @@ export function Scout({
       else next.add(owner);
       return next;
     });
+  }
+
+  function onSwipe(owner: string, dir: "left" | "right") {
+    if (dir === "right") setApproved((p) => new Set(p).add(owner));
+    else {
+      setApproved((p) => {
+        const n = new Set(p);
+        n.delete(owner);
+        return n;
+      });
+      setSkipped((p) => new Set(p).add(owner));
+    }
   }
 
   async function deploy() {
@@ -84,7 +111,7 @@ export function Scout({
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold tracking-tight text-fg">Scout report</span>
               <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted ring-1 ring-line">
-                {result.mode === "fable" ? "Fable 5" : "Heuristic"}
+                {prettyModel(result.model)}
               </span>
             </div>
             <p className="text-sm leading-relaxed text-muted">{result.summary}</p>
@@ -93,16 +120,25 @@ export function Scout({
       </motion.div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_330px]">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {result.squad.map((pick, i) => (
-            <LeaderCard
-              key={pick.owner}
-              pick={pick}
-              index={i}
-              approved={approved.has(pick.owner)}
-              onToggle={() => toggle(pick.owner)}
-            />
-          ))}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-xs text-faint">
+            <HandSwipeRightIcon size={15} className="text-accent" />
+            Swipe right to draft · left to skip · or tap a card
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <AnimatePresence>
+              {visible.map((pick, i) => (
+                <LeaderCard
+                  key={pick.owner}
+                  pick={pick}
+                  index={i}
+                  approved={approved.has(pick.owner)}
+                  onToggle={() => toggle(pick.owner)}
+                  onSwipe={(dir) => onSwipe(pick.owner, dir)}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">

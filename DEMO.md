@@ -36,10 +36,11 @@ Slipstream. The story is "the leader holds; your guard acts."
 3. **Screen 3 — The guard (0:40–1:30).** "My position is now live inside a MagicBlock Ephemeral
    Rollup." Point at the **Autonomous guard** counter climbing — "those are on-chain ticks; the ER
    is running `check_trailing_stop` itself every 500ms, zero transactions from me." Show the
-   trailing-stop bar tracking the mark. Then click **Simulate drawdown**: the mark drops, the stop
-   line holds, the mark crosses it — **the guard fires on-chain**, the banner drops: _downside
-   capped, equity locked_. "The leader's still in it. I'm already out — decided on-chain, at tick
-   speed."
+   **Guarded vs held** chart with both lines sitting together, and the trailing-stop bar tracking the
+   mark. Then click **Simulate drawdown**: both lines dive, the stop line holds, the mark crosses it
+   — **the guard fires on-chain**, your line flattens while the leader's keeps falling, and the
+   banner drops: _downside capped, equity locked_. "The leader's still in it. I'm already out —
+   decided on-chain, at tick speed."
 
 ## One-liner for the submission
 

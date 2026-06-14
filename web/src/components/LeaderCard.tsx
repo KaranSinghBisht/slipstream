@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "motion/react";
+import { motion, useMotionValue, useTransform } from "motion/react";
 import { CheckCircleIcon, GaugeIcon, ShieldIcon, StackIcon, TrendUpIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { addr, compactUsd, pct } from "@/lib/format";
@@ -10,18 +10,48 @@ export function LeaderCard({
   index,
   approved,
   onToggle,
+  onSwipe,
 }: {
   pick: SquadPick;
   index: number;
   approved: boolean;
   onToggle: () => void;
+  onSwipe: (dir: "left" | "right") => void;
 }) {
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-220, 220], [-7, 7]);
+  const draftHint = useTransform(x, [12, 120], [0, 1]);
+  const skipHint = useTransform(x, [-120, -12], [1, 0]);
+
   return (
     <motion.div
+      style={{ x, rotate }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.6}
+      onDragEnd={(_, info) => {
+        if (info.offset.x > 110) onSwipe("right");
+        else if (info.offset.x < -110) onSwipe("left");
+      }}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0, scale: 0.88, transition: { duration: 0.25 } }}
+      transition={{ duration: 0.55, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+      className="relative cursor-grab touch-pan-y active:cursor-grabbing"
     >
+      <motion.span
+        style={{ opacity: draftHint }}
+        className="pointer-events-none absolute right-4 top-4 z-10 rounded-md bg-accent px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[#04130d]"
+      >
+        Draft
+      </motion.span>
+      <motion.span
+        style={{ opacity: skipHint }}
+        className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-short px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[#1a0508]"
+      >
+        Skip
+      </motion.span>
+
       <Bezel
         className={`transition-shadow duration-500 ${approved ? "ring-1 ring-accent/40" : ""}`}
         innerClassName="flex flex-col gap-4 p-5"
@@ -51,9 +81,7 @@ export function LeaderCard({
         <button
           onClick={onToggle}
           className={`group mt-1 inline-flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold tracking-tight transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] ${
-            approved
-              ? "bg-accent text-[#04130d]"
-              : "bg-white/[0.04] text-fg ring-1 ring-line hover:bg-white/[0.08]"
+            approved ? "bg-accent text-[#04130d]" : "bg-white/[0.04] text-fg ring-1 ring-line hover:bg-white/[0.08]"
           }`}
         >
           <CheckCircleIcon size={16} weight={approved ? "fill" : "regular"} />
