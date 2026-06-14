@@ -122,6 +122,18 @@ product layer on top of it:
   pnpm mirror-plan <leaderPubkey> 1000 100      # or: GET /mirror-plan?owner=…&allocationUsd=…
   ```
 
+Run live against a real V2 leader — the cap and the $11 floor actually fire:
+
+```
+$ pnpm mirror-plan 3RsAgsA4DBQ9GyncLNYQaoAU2txdaFamFjMs7MeCKqoR 1000 100
+leader 3RsAgsA4… — 2 live V2 position(s)
+OPEN  LONG NATGAS   — leader $17 @ 6.8x  → mirror $100.00 (14.60 USDC collateral)
+SKIP  LONG CRUDEOIL — mirror collateral $5.47 < $11 floor
+```
+
+(Live V2 is currently sparse — a handful of active baskets — so leader *discovery* and the
+analytics/heatmap run on the deeper V1 population; the V2 client above is the real mirror leg.)
+
 Slipstream's twist: instead of replaying the mirror straight onto Flash, it routes the **approved**
 mirror through the ER guard vault, which adds the autonomous on-chain trailing stop, then settles —
 the same blessed mirror discipline, plus risk management the leader doesn't have.
