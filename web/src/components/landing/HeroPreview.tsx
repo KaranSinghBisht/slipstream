@@ -27,7 +27,7 @@ export function HeroPreview() {
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="relative mt-16 w-full"
+      className="relative z-10 mt-16 w-full"
     >
       <div aria-hidden className="absolute inset-x-10 -bottom-6 top-16 -z-10 rounded-[2.5rem] glow-flash" />
       <div className="bezel rounded-[1.25rem] p-2 ring-1 ring-line-strong">

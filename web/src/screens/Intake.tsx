@@ -4,12 +4,19 @@ import { motion } from "motion/react";
 import { LightningIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
+import { CandleChart } from "@/components/CandleChart";
 import { api } from "@/lib/api";
 import type { Constraints, Risk } from "@/lib/types";
 
 const MARKETS = ["SOL", "BTC", "ETH"];
 const RISKS: Risk[] = ["conservative", "balanced", "aggressive"];
 const CHIPS = [500, 1000, 5000];
+// Picking a risk profile sets sensible leverage + trail defaults (still tunable).
+const RISK_PRESETS: Record<Risk, { lev: number; trail: number }> = {
+  conservative: { lev: 2, trail: 0.5 },
+  balanced: { lev: 3, trail: 0.8 },
+  aggressive: { lev: 5, trail: 1.5 },
+};
 
 export function Intake({ onSubmit }: { onSubmit: (c: Constraints) => void }) {
   const [market, setMarket] = useState("SOL");
@@ -63,6 +70,10 @@ export function Intake({ onSubmit }: { onSubmit: (c: Constraints) => void }) {
             {leaders !== null ? `${leaders.toLocaleString()} leaders live on Flash` : "Indexing Flash…"}
           </span>
         </div>
+
+        <Bezel innerClassName="p-4">
+          <CandleChart market={market} height={200} />
+        </Bezel>
       </motion.div>
 
       <motion.div
@@ -124,7 +135,12 @@ export function Intake({ onSubmit }: { onSubmit: (c: Constraints) => void }) {
               label="Risk tolerance"
               value={risk}
               options={RISKS}
-              onChange={(v) => setRisk(v as Risk)}
+              onChange={(v) => {
+                const r = v as Risk;
+                setRisk(r);
+                setLeverageX(RISK_PRESETS[r].lev);
+                setTrailPct(RISK_PRESETS[r].trail);
+              }}
               capitalize
             />
 

@@ -17,13 +17,16 @@ export function validateConstraints(input: any): Constraints {
   return { market, allocationUsd, maxLeverageX10, trailBps, risk };
 }
 
+const PUBKEY = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateSquad(input: any): SquadPick[] {
   if (!Array.isArray(input) || input.length === 0) throw new Error("squad must be a non-empty array");
   if (input.length > 5) throw new Error("squad too large");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return input.map((p: any, i: number) => {
+  const squad = input.map((p: any, i: number) => {
     if (!p || typeof p.owner !== "string") throw new Error(`squad[${i}] missing owner`);
+    if (!PUBKEY.test(p.owner)) throw new Error(`squad[${i}] invalid owner pubkey`);
     const allocationPct = Number(p.allocationPct);
     const avgLeverage = Number(p?.stats?.avgLeverage ?? 1);
     if (!(allocationPct >= 0 && allocationPct <= 100)) throw new Error(`squad[${i}] bad allocationPct`);
@@ -40,4 +43,7 @@ export function validateSquad(input: any): SquadPick[] {
       },
     };
   });
+  const sum = squad.reduce((a, p) => a + p.allocationPct, 0);
+  if (sum < 95 || sum > 105) throw new Error("squad allocationPct must sum to ~100");
+  return squad;
 }

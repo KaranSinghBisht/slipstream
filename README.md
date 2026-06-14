@@ -1,30 +1,37 @@
 # Slipstream
 
-**AI-scouted, you-approved, on-chain-guarded copy trading on Flash Trade.**
+**The AI scout that drafts your Flash Trade squad — and guards it on-chain.**
 
-> _"I told it 'SOL, $1,000, conservative.' It scanned every live wallet on Flash Trade, showed me a
-> squad of leaders with the liquidation heatmap to back it up, I drafted three, and when the trade
-> turned, my trailing stop fired **on-chain, 50ms after the tick** — while the leader kept bleeding."_
+> _"I told it 'SOL, $1,000, conservative.' It scanned every live wallet on Flash Trade, ranked them
+> against the liquidation heatmap, and drafted me a squad. I approved three — and when the trade
+> turned, a trailing stop fired **on-chain, inside a MagicBlock rollup**, while the leader I copied
+> kept bleeding."_
 
-Slipstream turns copy trading into a product you actually control. An agent reads live Flash Trade
-leaderboard analytics, proposes a squad of 3–5 leaders **within your risk constraints**, and you
-approve who to draft. The position is then mirrored into a vault delegated to a **MagicBlock
-Ephemeral Rollup**, where an autonomous on-chain crank ratchets a trailing stop against a 50ms Pyth
-Lazer feed and fires protective closes as zero-fee ER transactions.
+You don't have a stop-loss problem — you have a **"who do I follow, and how much do I risk"**
+problem. Slipstream is the **decision layer** for Solana perps: an AI agent reads the live Flash
+Trade leaderboard and liquidation heatmap, drafts a squad of 3–5 leaders **inside your risk limits**,
+you approve who to copy, and the mirrored position is delegated to a **MagicBlock Ephemeral Rollup**
+where an autonomous on-chain crank trails a stop the leader never had.
 
-Built for **Solana Blitz v5** (theme: Trading). Mandatory MagicBlock ER integration ✓ · Flash Trade
-integration ✓.
+It's also **Claude-native**: the entire product is operable from Claude Code via an 8-tool MCP
+server — scout, draft, follow, and watch your guard, from chat.
+
+Built for **Solana Blitz v5** (theme: Trading). MagicBlock ER ✓ · Flash Trade ✓ · Claude MCP ✓.
 
 ---
 
-## The honest framing
+## Not another stop-loss tool
 
-This demo uses **live Flash Trade leader data from mainnet** and executes the **ER risk-management
-engine on devnet with real Pyth prices**. In production, the Flash trade-execution bridge (V2
-tx-builder open/close endpoints) connects at the mirror step. For the hackathon, the ER
-trailing-stop and risk engine is **fully functional against live market data** — the indexer is the
-bridge: it reads real Flash mainnet leader positions and writes a *scaled* position into the devnet
-ER vault. We never claim the follower's position is a live Flash basket.
+A trailing stop is *one feature* inside Slipstream — not the product. The product is the decision
+that comes **before** the trade: who to copy, and how much to risk.
+
+| | A stop-loss tool | **Slipstream** |
+|---|---|---|
+| Answers | "How do I exit?" | "Who do I follow, how much, and how do I exit?" |
+| Input | A position you already opened | A risk mandate (market · budget · leverage ceiling · trail) |
+| Intelligence | None — you pick everything | AI scout reads 400+ live Flash leaders + the liquidation heatmap, drafts a squad |
+| Operable from | A web UI | A web UI **and Claude Code** — an 8-tool MCP server |
+| The on-chain guard | The whole product | The safety net under a *copied* position |
 
 ---
 
@@ -212,6 +219,31 @@ Motion · Claude **Fable 5**.
 
 Devnet + a dedicated burner only; keys and RPC live in a gitignored `.env`. All trade/amount inputs
 are validated at the API boundary and capped. No secrets in source.
+
+---
+
+## Verified on devnet
+
+- **Autonomous crank** — 63 on-chain `check_trailing_stop` ticks in 31s with **zero client
+  transactions**: the guard runs *itself* inside the ER (`pnpm test:crank`).
+- **On-chain oracle read** — the crank decodes the delegated Pyth Lazer account in-program, ratchets
+  the high-water stop, and fires; every fire is an inspectable ER transaction with a real signature
+  in the dashboard tx feed.
+- **Full delegation lifecycle** — delegate → open → tick → stop → commit → undelegate, proven
+  end-to-end (`pnpm test:er`).
+
+## Honest limitations
+
+- **Leader discovery runs on Flash V1** (the deep, liquid population). The V2 mirror client
+  (`flash/v2.ts` — real tx-builders, collateral-ratio sizing, $11 floor) is wired into the live
+  `/mirror-plan` dry-run, **not** the on-chain demo path: the guarded position is a *scaled mirror*
+  in the ER vault, not yet a live V2 basket. We never claim otherwise.
+- **The dashboard "adverse replay"** drives a scripted price path via `apply_tick` so the stop fires
+  on demand in seconds — the trailing-stop logic and on-chain Pyth read it exercises are real; the
+  price path is illustrative (labeled on-screen).
+- **The liquidation heatmap** approximates distance-to-liquidation (V1 open interest; maintenance
+  params not modeled) — labeled "approx." in the UI.
+- **Crank cadence is 500ms and the demo is SOL-centric** — both are configuration, not limits.
 
 ---
 

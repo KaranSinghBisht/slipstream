@@ -21,7 +21,7 @@ export function Heatmap({ bins }: { bins: HeatmapBin[] }) {
       <div className="flex items-baseline justify-between">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-fg">Liquidation heatmap</h3>
-          <p className="text-xs text-faint">notional by distance to liquidation</p>
+          <p className="text-xs text-faint">approx. notional by distance to liquidation</p>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold text-short tnum">{compactUsd(atRisk)}</div>

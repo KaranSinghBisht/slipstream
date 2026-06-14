@@ -17,3 +17,4 @@ refs/
 scripts/shoot*.mjs
 scripts/capture-refs.mjs
 data/leaders-cache.json
+.vercel

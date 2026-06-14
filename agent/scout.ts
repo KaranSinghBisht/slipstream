@@ -87,15 +87,17 @@ export async function scoutSquad(
 }
 
 function riskWeights(risk: Risk): { conviction: number; safety: number; discipline: number } {
-  if (risk === "conservative") return { conviction: 0.25, safety: 0.5, discipline: 0.25 };
-  if (risk === "aggressive") return { conviction: 0.55, safety: 0.15, discipline: 0.3 };
+  if (risk === "conservative") return { conviction: 0.2, safety: 0.55, discipline: 0.25 };
+  if (risk === "aggressive") return { conviction: 0.6, safety: 0.15, discipline: 0.25 };
   return { conviction: 0.4, safety: 0.35, discipline: 0.25 };
 }
 
 /** 0..1 score blending book conviction, liquidation safety, leverage discipline. */
 function scoreLeader(l: LeaderLike, c: Constraints): number {
   const w = riskWeights(c.risk);
-  const conviction = Math.min(1, Math.log10(Math.max(10, l.notionalUsd)) / 6); // ~$1M → 1.0
+  // Spread conviction across the typical $10k–$10M book range so size genuinely
+  // separates leaders (a saturated curve made every sizable book look equal).
+  const conviction = Math.max(0, Math.min(1, (Math.log10(Math.max(10, l.notionalUsd)) - 3) / 4));
   const safety = Math.min(1, l.liqDistancePct / 50); // 50%+ away → fully safe
   const userMax = c.maxLeverageX10 / 10;
   const over = Math.max(0, l.avgLeverage - userMax);
@@ -103,7 +105,7 @@ function scoreLeader(l: LeaderLike, c: Constraints): number {
   return w.conviction * conviction + w.safety * safety + w.discipline * discipline;
 }
 
-function rankLeaders(leaders: LeaderLike[], c: Constraints): LeaderLike[] {
+export function rankLeaders(leaders: LeaderLike[], c: Constraints): LeaderLike[] {
   const live = leaders.filter((l) => l.notionalUsd > 0 && l.positions > 0);
   const serious = live.filter((l) => l.notionalUsd >= MIN_NOTIONAL);
   const pool = serious.length >= 5 ? serious : live;
@@ -111,6 +113,7 @@ function rankLeaders(leaders: LeaderLike[], c: Constraints): LeaderLike[] {
 }
 
 function allocate(scores: number[]): number[] {
+  if (scores.length === 0) return []; // guard: empty pool would divide-by-zero in the drift loop
   const total = scores.reduce((a, s) => a + s, 0) || 1;
   const raw = scores.map((s) => (s / total) * 100);
   const floored = raw.map((r) => Math.max(8, Math.floor(r)));
@@ -203,13 +206,13 @@ async function aiSquad(
     if (!res.ok) throw new Error(`anthropic ${res.status}`);
     const body = (await res.json()) as { content?: { text?: string }[] };
     const text = body.content?.map((b) => b.text ?? "").join("") ?? "";
-    return { ...parseFable(text, ranked), model };
+    return { ...parseFable(text, ranked, c), model };
   } finally {
     clearTimeout(timer);
   }
 }
 
-function parseFable(text: string, ranked: LeaderLike[]): ScoutResult {
+function parseFable(text: string, ranked: LeaderLike[], c: Constraints): ScoutResult {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("no JSON in scout reply");
   const parsed = JSON.parse(match[0]) as {
@@ -217,24 +220,25 @@ function parseFable(text: string, ranked: LeaderLike[]): ScoutResult {
     squad: { owner: string; allocationPct: number; role?: string; reason: string }[];
   };
   const known = new Map(ranked.map((l) => [l.owner, l]));
-  const squad = parsed.squad
-    .filter((p) => known.has(p.owner))
-    .slice(0, 5)
-    .map((p) => {
-      const l = known.get(p.owner) as LeaderLike;
-      return {
-        owner: p.owner,
-        allocationPct: Math.round(p.allocationPct),
-        role: p.role ?? "Core",
-        reason: p.reason,
-        stats: {
-          notionalUsd: Math.round(l.notionalUsd),
-          avgLeverage: Number(l.avgLeverage.toFixed(2)),
-          liqDistancePct: Number(l.liqDistancePct.toFixed(1)),
-          positions: l.positions,
-        },
-      };
-    });
-  if (squad.length < 3) throw new Error("scout returned too few valid leaders");
+  const members = parsed.squad.filter((p) => known.has(p.owner)).slice(0, 5);
+  if (members.length < 3) throw new Error("scout returned too few valid leaders");
+  // Size deterministically from risk-weighted scores, so allocations always
+  // reflect the follower's risk tolerance — not the model's whim.
+  const allocations = allocate(members.map((p) => scoreLeader(known.get(p.owner) as LeaderLike, c)));
+  const squad = members.map((p, i) => {
+    const l = known.get(p.owner) as LeaderLike;
+    return {
+      owner: p.owner,
+      allocationPct: allocations[i],
+      role: p.role ?? "Core",
+      reason: p.reason,
+      stats: {
+        notionalUsd: Math.round(l.notionalUsd),
+        avgLeverage: Number(l.avgLeverage.toFixed(2)),
+        liqDistancePct: Number(l.liqDistancePct.toFixed(1)),
+        positions: l.positions,
+      },
+    };
+  });
   return { mode: "ai", summary: parsed.summary, squad };
 }

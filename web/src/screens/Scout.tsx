@@ -48,7 +48,9 @@ export function Scout({
 
   useEffect(() => {
     let live = true;
-    Promise.all([api.leaders(), api.heatmap()])
+    // Candidates are ranked by the follower's risk tolerance — conservative
+    // surfaces high-buffer / low-leverage books, aggressive surfaces conviction.
+    Promise.all([api.candidates(constraints), api.heatmap()])
       .then(([ls, h]) => {
         if (!live) return;
         setCandidates(ls.slice(0, 10));
@@ -58,7 +60,7 @@ export function Scout({
     return () => {
       live = false;
     };
-  }, []);
+  }, [constraints.market, constraints.allocationUsd, constraints.maxLeverageX10, constraints.trailBps, constraints.risk]);
 
   async function onSwiped(kept: string[]) {
     setStage("analyzing");
@@ -200,7 +202,7 @@ function SquadStage({
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {result.squad.map((p, i) => (
-            <PickCard key={p.owner} pick={p} index={i} />
+            <PickCard key={p.owner} pick={p} index={i} allocationUsd={constraints.allocationUsd} />
           ))}
         </div>
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
@@ -228,7 +230,8 @@ function SquadStage({
   );
 }
 
-function PickCard({ pick, index }: { pick: SquadPick; index: number }) {
+function PickCard({ pick, index, allocationUsd }: { pick: SquadPick; index: number; allocationUsd: number }) {
+  const size = Math.round((pick.allocationPct / 100) * allocationUsd);
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -245,7 +248,7 @@ function PickCard({ pick, index }: { pick: SquadPick; index: number }) {
           </div>
           <div className="text-right">
             <div className="font-mono text-lg font-semibold text-fg tnum">{pick.allocationPct}%</div>
-            <div className="text-[10px] uppercase tracking-wider text-faint">allocation</div>
+            <div className="font-mono text-[10px] text-faint tnum">${size.toLocaleString()}</div>
           </div>
         </div>
         <div className="grid grid-cols-4 gap-2">

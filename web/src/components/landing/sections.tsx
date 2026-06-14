@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { HeroPreview } from "@/components/landing/HeroPreview";
+import { HeroCandles } from "@/components/landing/HeroCandles";
 
 function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
   return (
@@ -41,11 +42,38 @@ function Arrow() {
 export function Hero() {
   return (
     <section className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-24 pt-36 text-center">
+      {/* candlestick field lining the base of the hero (full-bleed, behind content) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-0 z-0 h-[34rem] w-screen -translate-x-1/2"
+        style={{
+          maskImage: "linear-gradient(to top, #000 0%, #000 14%, transparent 64%)",
+          WebkitMaskImage: "linear-gradient(to top, #000 0%, #000 14%, transparent 64%)",
+        }}
+      >
+        <div
+          className="absolute inset-x-0 bottom-0 h-60 px-2 opacity-80"
+          style={{
+            maskImage: "linear-gradient(to right, transparent, #000 9%, #000 91%, transparent)",
+            WebkitMaskImage: "linear-gradient(to right, transparent, #000 9%, #000 91%, transparent)",
+          }}
+        >
+          <HeroCandles />
+        </div>
+      </div>
+
+      {/* soft scrim so the candle field never fights the hero copy */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-20 z-[1] h-[24rem] w-full max-w-3xl -translate-x-1/2"
+        style={{ background: "radial-gradient(ellipse 60% 52% at 50% 42%, rgba(5,5,7,0.92) 0%, rgba(5,5,7,0.55) 48%, transparent 76%)" }}
+      />
+
       <motion.div
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col items-center gap-6"
+        className="relative z-10 flex flex-col items-center gap-6"
       >
         <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-tight text-muted ring-1 ring-line">
           <LightningIcon size={13} weight="fill" className="text-accent" />
@@ -94,14 +122,19 @@ export function HowItWorks() {
           Copy trading you actually control.
         </h2>
       </Reveal>
-      <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-12 grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
-          <Reveal key={s.title} delay={i * 0.08}>
-            <Bezel className="group transition-shadow duration-500 hover:ring-1 hover:ring-accent/30" innerClassName="flex h-full flex-col gap-3 p-5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/12 text-accent transition-colors group-hover:bg-accent/20">
-                {s.icon}
+          <Reveal key={s.title} delay={i * 0.08} className="h-full">
+            <Bezel
+              className="group h-full transition-all duration-500 hover:-translate-y-1 hover:ring-1 hover:ring-accent/30"
+              innerClassName="flex h-full flex-col gap-3 p-5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/12 text-accent transition-colors group-hover:bg-accent/20">
+                  {s.icon}
+                </div>
+                <span className="font-mono text-xs text-faint">0{i + 1}</span>
               </div>
-              <span className="font-mono text-xs text-faint">0{i + 1}</span>
               <h3 className="text-base font-semibold tracking-tight text-fg">{s.title}</h3>
               <p className="text-sm leading-relaxed text-muted">{s.body}</p>
             </Bezel>

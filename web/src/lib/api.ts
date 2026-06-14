@@ -31,7 +31,9 @@ export const api = {
   health: () => getJson<Health>("/health"),
   leaders: () => getJson<LeaderStats[]>("/leaders"),
   heatmap: () => getJson<HeatmapBin[]>("/heatmap"),
+  prices: () => getJson<{ symbol: string; price: number; changePct: number }[]>("/prices"),
   scout: (constraints: Constraints) => postJson<ScoutResult>("/scout", { constraints }),
+  candidates: (constraints: Constraints) => postJson<LeaderStats[]>("/candidates", { constraints }),
   analyze: (constraints: Constraints, owners: string[]) =>
     postJson<ScoutResult>("/analyze", { constraints, owners }),
   createSession: (constraints: Constraints) => postJson<SessionInfo>("/session", { constraints }),

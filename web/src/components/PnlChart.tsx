@@ -13,10 +13,12 @@ export function PnlChart({
   samples,
   firedAt,
   alloc,
+  note,
 }: {
   samples: PnlSample[];
   firedAt: number | null;
   alloc: number;
+  note?: string;
 }) {
   if (samples.length < 2) return <Placeholder />;
 
@@ -50,7 +52,14 @@ export function PnlChart({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-faint">Guarded vs held · P&amp;L</span>
+        <span className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-faint">Guarded vs held · P&amp;L</span>
+          {note && (
+            <span className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-faint ring-1 ring-line">
+              {note}
+            </span>
+          )}
+        </span>
         <div className="flex items-center gap-3 text-[11px]">
           <Legend color="#34d399" label="You" value={last.you} alloc={alloc} />
           <Legend color="#fb7185" label="Leader" value={last.leader} alloc={alloc} />

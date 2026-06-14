@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
-import { CandleChart, type PriceMark } from "@/components/CandleChart";
+import { CandleChart, type PriceMark, type ChartEvent } from "@/components/CandleChart";
 import { PnlChart } from "@/components/PnlChart";
 import { TxFeed } from "@/components/TxFeed";
 import { api } from "@/lib/api";
@@ -46,6 +46,20 @@ export function Dashboard({ session }: { session: SessionInfo }) {
     if (v && v.trailStop > 0) out.push({ price: v.trailStop, color: v.stopFired ? "#fb7185" : "#34d399", title: "stop" });
     return out;
   }, [v?.entryPrice, v?.trailStop, v?.stopFired]);
+
+  // real trade-event markers from the tx feed — your mirror-in and the stop fire
+  const events = useMemo<ChartEvent[]>(() => {
+    if (!v) return [];
+    const out: ChartEvent[] = [];
+    const mirror = v.txs.find((t) => t.kind.toLowerCase() === "mirror");
+    if (mirror) out.push({ time: mirror.ts, label: "You in", tone: "you" });
+    if (v.stopFired) {
+      const fire = [...v.txs].reverse().find((t) => ["stress", "crank"].includes(t.kind.toLowerCase()));
+      const t = fire ?? v.txs[v.txs.length - 1];
+      if (t) out.push({ time: t.ts, label: "Stop fired", tone: "stop" });
+    }
+    return out;
+  }, [v?.txs, v?.stopFired]);
 
   async function runStress() {
     setStressing(true);
@@ -122,10 +136,10 @@ export function Dashboard({ session }: { session: SessionInfo }) {
                 <div className="text-[10px] uppercase tracking-wider text-faint">Mark</div>
                 <div className="font-mono text-4xl font-semibold tracking-tight text-fg tnum">{price(v.markPrice)}</div>
               </div>
-              <Metric label="Entry" value={price(v.entryPrice)} />
+              <Metric label="Entry" value={v.entryPrice > 0 ? price(v.entryPrice) : "—"} />
               <Metric
                 label="Stop"
-                value={price(v.trailStop)}
+                value={v.trailStop > 0 ? price(v.trailStop) : "—"}
                 sub={v.stopFired ? "fired" : `${bufferPct.toFixed(2)}% away`}
                 tone={v.stopFired ? "down" : undefined}
               />
@@ -138,38 +152,28 @@ export function Dashboard({ session }: { session: SessionInfo }) {
             </div>
           </Bezel>
 
-          {/* the pro trading view: real candles + entry/stop lines */}
-          <Bezel innerClassName="flex flex-col gap-2 p-4">
-            <div className="flex items-center justify-between px-1">
-              <span className="font-mono text-xs text-fg">
-                {v.market}/USD <span className="text-faint">· 15m · live</span>
-              </span>
-              <span className="flex items-center gap-3 font-mono text-[10px] text-faint">
-                <span className="flex items-center gap-1"><span className="h-px w-3 bg-[#8a90a0]" />entry</span>
-                <span className="flex items-center gap-1">
-                  <span className={`h-px w-3 ${v.stopFired ? "bg-short" : "bg-accent"}`} />stop
-                </span>
-              </span>
-            </div>
-            <CandleChart market={v.market} height={260} marks={marks} />
+          {/* the pro trading view: real candles + volume + entry/stop lines */}
+          <Bezel innerClassName="p-4">
+            <CandleChart market={v.market} height={300} marks={marks} events={events} />
           </Bezel>
 
           {/* the money shot: guarded vs held */}
           <Bezel innerClassName="p-5">
-            <PnlChart samples={v.chart} firedAt={v.chartFiredAt} alloc={v.allocationUsd} />
+            <PnlChart samples={v.chart} firedAt={v.chartFiredAt} alloc={v.allocationUsd} note="adverse replay" />
           </Bezel>
 
           <Bezel innerClassName="flex items-center justify-between gap-4 p-5">
             <div>
-              <p className="text-sm font-semibold tracking-tight text-fg">Stress the guard</p>
+              <p className="text-sm font-semibold tracking-tight text-fg">Replay an adverse move</p>
               <p className="max-w-md text-xs leading-relaxed text-faint">
-                Feeds an adverse path via on-chain <span className="font-mono">apply_tick</span> so you can watch the
-                stop fire. The crank reads the real Pyth feed.
+                Pushes a scripted adverse price path on-chain via <span className="font-mono">apply_tick</span> so you
+                can watch the guard fire in seconds. The trailing-stop logic and Pyth read run for real in the rollup —
+                the curve is an illustrative replay, not a live market.
               </p>
             </div>
             <Button onClick={runStress} variant="danger" disabled={!open || stressing}>
               <TrendDownIcon size={16} weight="bold" />
-              {stressing ? "Draining…" : "Simulate drawdown"}
+              {stressing ? "Replaying…" : "Replay drawdown"}
             </Button>
           </Bezel>
         </div>

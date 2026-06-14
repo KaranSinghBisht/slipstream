@@ -25,7 +25,7 @@ import {
   buildLeaderboard,
   fetchLivePositions,
 } from "../indexer/flash.js";
-import { scoutSquad } from "../agent/scout.js";
+import { rankLeaders, scoutSquad } from "../agent/scout.js";
 import { ownerSnapshot } from "../flash/v2.js";
 import { planFreshMirror } from "../flash/mirror-plan.js";
 import { getSession, listSessions } from "../bridge/context.js";
@@ -33,6 +33,7 @@ import { getVaultState, startSession } from "../bridge/session.js";
 import { followSquad, stress } from "../bridge/mirror.js";
 import { loadCache, saveCache } from "./cache.js";
 import { getCandles } from "./candles.js";
+import { getPrices } from "./prices.js";
 import { json, readJson, sendError } from "./http.js";
 import { validateConstraints, validateSquad } from "./validate.js";
 
@@ -86,7 +87,9 @@ async function route(req: http.IncomingMessage, res: http.ServerResponse): Promi
   }
   if (p === "/leaders") return json(res, leaderboard.slice(0, 50));
   if (p === "/heatmap") return json(res, heatmap);
-  if (p === "/candles") return json(res, await getCandles(url.searchParams.get("market") ?? "SOL"));
+  if (p === "/candles")
+    return json(res, await getCandles(url.searchParams.get("market") ?? "SOL", url.searchParams.get("interval") ?? "15m"));
+  if (p === "/prices") return json(res, await getPrices());
 
   // Live, dry-run Flash V2 mirror plan (examples-v2 copy-trade pattern): pull a
   // leader's live V2 basket and size the mirror by collateral ratio + $11 floor.
@@ -125,6 +128,12 @@ async function route(req: http.IncomingMessage, res: http.ServerResponse): Promi
     const body = await readJson(req);
     const c = validateConstraints(body?.constraints);
     return json(res, await scoutSquad(leaderboard, c, heatmap));
+  }
+  // Swipe-deck candidates, ranked by the follower's risk tolerance.
+  if (p === "/candidates" && req.method === "POST") {
+    const body = await readJson(req);
+    const c = validateConstraints(body?.constraints);
+    return json(res, rankLeaders(leaderboard, c).slice(0, 10));
   }
   // Swipe deck: AI analyses only the leaders the user swiped to keep.
   if (p === "/analyze" && req.method === "POST") {
@@ -187,7 +196,16 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
-  route(req, res).catch((err) => sendError(res, 400, (err as Error).message));
+  route(req, res).catch((err) => {
+    // Only surface known user-facing validation messages; mask internals (RPC URLs,
+    // keypair paths, upstream API errors) per the security rules.
+    const msg = (err as Error)?.message ?? "";
+    const safe =
+      /^(missing|invalid|squad|not found|allocationUsd|maxLeverageX10|trailBps)/i.test(msg) || msg.includes("out of range")
+        ? msg
+        : "internal error";
+    sendError(res, safe === "internal error" ? 500 : 400, safe);
+  });
 });
 
 server.listen(PORT, () => {
