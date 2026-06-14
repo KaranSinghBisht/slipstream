@@ -24,6 +24,26 @@ export interface LeaderLike {
   markets: string[];
 }
 
+export interface HeatBin {
+  priceLow: number;
+  priceHigh: number;
+  notionalUsd: number;
+  positions: number;
+}
+
+/** Notional + positions that liquidate within tight bands — the analytics the
+ *  Flash judge wanted fed to the agent. */
+function summarizeHeat(bins: HeatBin[]): Record<string, { notionalUsd: number; positions: number }> {
+  const within = (pct: number) =>
+    bins
+      .filter((b) => b.priceHigh <= pct)
+      .reduce((a, b) => ({ notionalUsd: a.notionalUsd + b.notionalUsd, positions: a.positions + b.positions }), {
+        notionalUsd: 0,
+        positions: 0,
+      });
+  return { within5pct: within(5), within10pct: within(10), within25pct: within(25) };
+}
+
 export interface SquadPick {
   owner: string;
   allocationPct: number;
@@ -44,7 +64,8 @@ const MIN_NOTIONAL = 10_000; // skip dust books unless the pool is thin
 
 export async function scoutSquad(
   leaders: LeaderLike[],
-  constraints: Constraints
+  constraints: Constraints,
+  heatmap: HeatBin[] = []
 ): Promise<ScoutResult> {
   const ranked = rankLeaders(leaders, constraints).slice(0, 12);
   if (process.env.ANTHROPIC_API_KEY) {
@@ -56,13 +77,13 @@ export async function scoutSquad(
     ].filter((m, i, a) => Boolean(m) && a.indexOf(m) === i);
     for (const model of models) {
       try {
-        return await aiSquad(ranked, constraints, model);
+        return await aiSquad(ranked, constraints, model, heatmap);
       } catch (err) {
         process.stderr.write(`[scout] ${model} unavailable: ${(err as Error).message}\n`);
       }
     }
   }
-  return ruleBasedSquad(ranked, constraints);
+  return ruleBasedSquad(ranked, constraints, heatmap);
 }
 
 function riskWeights(risk: Risk): { conviction: number; safety: number; discipline: number } {
@@ -115,7 +136,7 @@ function reasonFor(l: LeaderLike, role: string): string {
   return `${notional} deployed at ${lev}, ${liq} from liquidation — disciplined sizing that fits your ceiling. Core of the squad.`;
 }
 
-function ruleBasedSquad(ranked: LeaderLike[], c: Constraints): ScoutResult {
+function ruleBasedSquad(ranked: LeaderLike[], c: Constraints, heatmap: HeatBin[]): ScoutResult {
   const picks = ranked.slice(0, Math.min(4, ranked.length));
   const allocations = allocate(picks.map((l) => scoreLeader(l, c)));
   const squad = picks.map((l, i) => ({
@@ -130,16 +151,25 @@ function ruleBasedSquad(ranked: LeaderLike[], c: Constraints): ScoutResult {
       positions: l.positions,
     },
   }));
+  const atRisk = summarizeHeat(heatmap).within10pct.notionalUsd;
   const summary =
     `Scanned ${ranked.length} live Flash books for a ${c.risk} ${c.market} mandate at ` +
     `≤${(c.maxLeverageX10 / 10).toFixed(1)}× with a ${(c.trailBps / 100).toFixed(2)}% trail. ` +
     `Selected ${squad.length} leaders weighted toward ${
       c.risk === "conservative" ? "liquidation safety" : c.risk === "aggressive" ? "book conviction" : "balanced edge"
-    }.`;
+    }` +
+    (atRisk > 0
+      ? `; the liquidation heatmap shows $${Math.round(atRisk).toLocaleString()} of leader notional liquidating within a 10% move.`
+      : ".");
   return { mode: "rule", summary, squad };
 }
 
-async function aiSquad(ranked: LeaderLike[], c: Constraints, model: string): Promise<ScoutResult> {
+async function aiSquad(
+  ranked: LeaderLike[],
+  c: Constraints,
+  model: string,
+  heatmap: HeatBin[]
+): Promise<ScoutResult> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15_000);
   try {
@@ -157,13 +187,15 @@ async function aiSquad(ranked: LeaderLike[], c: Constraints, model: string): Pro
         system:
           "You are a perps copy-trading scout. Given live Flash Trade leader analytics and a " +
           "follower's risk constraints, pick a squad of 3–5 leaders to copy. Respect the leverage " +
-          "ceiling and risk tolerance. Reply with ONLY a JSON object: " +
+          "ceiling and risk tolerance. You are also given the live liquidation heatmap (leader notional " +
+          "that liquidates within 5/10/25% of entry) — weigh it, favour leaders whose risk sits outside " +
+          "the danger bands, and reference the heatmap in your summary. Reply with ONLY a JSON object: " +
           '{"summary": string, "squad": [{"owner": string, "allocationPct": number, "role": string, "reason": string}]}. ' +
           "allocationPct across the squad must sum to 100. Each reason cites the leader's real stats in one sentence.",
         messages: [
           {
             role: "user",
-            content: JSON.stringify({ constraints: c, leaders: ranked }),
+            content: JSON.stringify({ constraints: c, leaders: ranked, liquidationHeatmap: summarizeHeat(heatmap) }),
           },
         ],
       }),

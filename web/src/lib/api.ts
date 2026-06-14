@@ -32,6 +32,8 @@ export const api = {
   leaders: () => getJson<LeaderStats[]>("/leaders"),
   heatmap: () => getJson<HeatmapBin[]>("/heatmap"),
   scout: (constraints: Constraints) => postJson<ScoutResult>("/scout", { constraints }),
+  analyze: (constraints: Constraints, owners: string[]) =>
+    postJson<ScoutResult>("/analyze", { constraints, owners }),
   createSession: (constraints: Constraints) => postJson<SessionInfo>("/session", { constraints }),
   state: (session: string) => getJson<VaultState>(`/state?session=${encodeURIComponent(session)}`),
   follow: (session: string, squad: SquadPick[]) =>

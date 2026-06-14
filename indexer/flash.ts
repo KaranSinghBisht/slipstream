@@ -68,6 +68,9 @@ export function decodePosition(pubkey: string, raw: Buffer): LivePosition | null
 
 export async function fetchLivePositions(conn: Connection): Promise<LivePosition[]> {
   const accounts = await conn.getProgramAccounts(FLASH_V1_PROGRAM, {
+    // Only the bytes we decode (through collateral @172+8) — keeps the sweep of
+    // ~45k accounts light enough for the public RPC.
+    dataSlice: { offset: 0, length: 200 },
     filters: [{ memcmp: { offset: 0, bytes: POSITION_DISC.toString("base64"), encoding: "base64" } }],
   });
   const live: LivePosition[] = [];

@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { AnimatePresence, motion } from "motion/react";
 import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon } from "@phosphor-icons/react";
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
-import { GuardViz } from "@/components/GuardViz";
+import { CandleChart, type PriceMark } from "@/components/CandleChart";
 import { PnlChart } from "@/components/PnlChart";
 import { TxFeed } from "@/components/TxFeed";
 import { api } from "@/lib/api";
@@ -40,6 +40,13 @@ export function Dashboard({ session }: { session: SessionInfo }) {
     };
   }, [session.session]);
 
+  const marks = useMemo<PriceMark[]>(() => {
+    const out: PriceMark[] = [];
+    if (v && v.entryPrice > 0) out.push({ price: v.entryPrice, color: "#8a90a0", title: "entry" });
+    if (v && v.trailStop > 0) out.push({ price: v.trailStop, color: v.stopFired ? "#fb7185" : "#34d399", title: "stop" });
+    return out;
+  }, [v?.entryPrice, v?.trailStop, v?.stopFired]);
+
   async function runStress() {
     setStressing(true);
     try {
@@ -59,25 +66,24 @@ export function Dashboard({ session }: { session: SessionInfo }) {
   const unrealPct = open && v.allocationUsd ? (unrealUsd / v.allocationUsd) * 100 : 0;
   const realizedUsd = v.equityUsd - v.allocationUsd;
   const realizedPct = v.allocationUsd ? (realizedUsd / v.allocationUsd) * 100 : 0;
+  const bufferPct = v.trailStop > 0 ? ((v.markPrice - v.trailStop) / v.markPrice) * 100 * (isLong ? 1 : -1) : 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-6">
       <AnimatePresence>
         {v.stopFired && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 140, damping: 18 }}
-            className="mb-6"
+            className="mb-5"
           >
-            <div className="flex items-center gap-4 rounded-2xl bg-short/10 p-5 ring-1 ring-short/30">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-short/15 text-short">
-                <ShieldCheckIcon size={22} weight="fill" />
+            <div className="flex items-center gap-4 rounded-lg bg-short/10 p-4 ring-1 ring-short/30">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-short/15 text-short">
+                <ShieldCheckIcon size={20} weight="fill" />
               </span>
               <div className="flex-1">
-                <p className="text-sm font-semibold tracking-tight text-fg">
-                  Trailing stop fired on-chain — downside capped.
-                </p>
+                <p className="text-sm font-semibold tracking-tight text-fg">Trailing stop fired on-chain. Downside capped.</p>
                 <p className="text-sm text-muted">
                   The guard closed your position autonomously at {price(v.lastPrice)}. Equity locked at{" "}
                   <span className="font-mono text-fg">{usd2(v.equityUsd)}</span> ({signedPct(realizedPct)}) while the
@@ -89,13 +95,14 @@ export function Dashboard({ session }: { session: SessionInfo }) {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_330px]">
-        <div className="flex flex-col gap-6">
-          <Bezel innerClassName="flex flex-col gap-5 p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="flex flex-col gap-4">
+          {/* position header */}
+          <Bezel innerClassName="flex flex-col gap-4 p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <span
-                  className={`rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                  className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
                     isLong ? "bg-long/12 text-long" : "bg-short/12 text-short"
                   }`}
                 >
@@ -103,53 +110,67 @@ export function Dashboard({ session }: { session: SessionInfo }) {
                 </span>
                 <span className="font-mono text-xs text-faint">vault {addr(v.vault, 4)}</span>
                 {publicKey && (
-                  <span className="hidden font-mono text-xs text-faint sm:inline">
-                    · managed for {addr(publicKey.toBase58(), 4)}
-                  </span>
+                  <span className="hidden font-mono text-xs text-faint sm:inline">· for {addr(publicKey.toBase58(), 4)}</span>
                 )}
               </div>
               <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted">
                 <BroadcastIcon size={13} className="text-accent" /> {v.erUrl.replace(/^https?:\/\//, "").split(".")[0]}
               </span>
             </div>
-
-            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-faint">Mark price</div>
+                <div className="text-[10px] uppercase tracking-wider text-faint">Mark</div>
                 <div className="font-mono text-4xl font-semibold tracking-tight text-fg tnum">{price(v.markPrice)}</div>
               </div>
               <Metric label="Entry" value={price(v.entryPrice)} />
               <Metric
+                label="Stop"
+                value={price(v.trailStop)}
+                sub={v.stopFired ? "fired" : `${bufferPct.toFixed(2)}% away`}
+                tone={v.stopFired ? "down" : undefined}
+              />
+              <Metric
                 label={open ? "Unrealised" : "Realised"}
-                value={open ? `${signedPct(unrealPct)}` : `${signedPct(realizedPct)}`}
-                tone={open ? (unrealPct >= 0 ? "up" : "down") : realizedPct >= 0 ? "up" : "down"}
+                value={signedPct(open ? unrealPct : realizedPct)}
+                tone={(open ? unrealPct : realizedPct) >= 0 ? "up" : "down"}
               />
               <Metric label="Equity" value={usd2(v.equityUsd)} />
             </div>
           </Bezel>
 
-          <Bezel innerClassName="p-6">
+          {/* the pro trading view: real candles + entry/stop lines */}
+          <Bezel innerClassName="flex flex-col gap-2 p-4">
+            <div className="flex items-center justify-between px-1">
+              <span className="font-mono text-xs text-fg">
+                {v.market}/USD <span className="text-faint">· 15m · live</span>
+              </span>
+              <span className="flex items-center gap-3 font-mono text-[10px] text-faint">
+                <span className="flex items-center gap-1"><span className="h-px w-3 bg-[#8a90a0]" />entry</span>
+                <span className="flex items-center gap-1">
+                  <span className={`h-px w-3 ${v.stopFired ? "bg-short" : "bg-accent"}`} />stop
+                </span>
+              </span>
+            </div>
+            <CandleChart market={v.market} height={260} marks={marks} />
+          </Bezel>
+
+          {/* the money shot: guarded vs held */}
+          <Bezel innerClassName="p-5">
             <PnlChart samples={v.chart} firedAt={v.chartFiredAt} alloc={v.allocationUsd} />
           </Bezel>
 
-          <Bezel innerClassName="p-6">
-            <GuardViz v={v} />
-          </Bezel>
-
-          <Bezel innerClassName="flex flex-col gap-3 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold tracking-tight text-fg">Stress the guard</p>
-                <p className="max-w-md text-xs leading-relaxed text-faint">
-                  Feeds an adverse price path via on-chain <span className="font-mono">apply_tick</span>. The crank reads
-                  the real Pyth feed; this forces the move so you can watch the stop fire.
-                </p>
-              </div>
-              <Button onClick={runStress} variant="danger" disabled={!open || stressing}>
-                <TrendDownIcon size={16} weight="bold" />
-                {stressing ? "Draining…" : "Simulate drawdown"}
-              </Button>
+          <Bezel innerClassName="flex items-center justify-between gap-4 p-5">
+            <div>
+              <p className="text-sm font-semibold tracking-tight text-fg">Stress the guard</p>
+              <p className="max-w-md text-xs leading-relaxed text-faint">
+                Feeds an adverse path via on-chain <span className="font-mono">apply_tick</span> so you can watch the
+                stop fire. The crank reads the real Pyth feed.
+              </p>
             </div>
+            <Button onClick={runStress} variant="danger" disabled={!open || stressing}>
+              <TrendDownIcon size={16} weight="bold" />
+              {stressing ? "Draining…" : "Simulate drawdown"}
+            </Button>
           </Bezel>
         </div>
 
@@ -178,11 +199,11 @@ export function Dashboard({ session }: { session: SessionInfo }) {
               <span className="pb-1.5 text-xs text-muted">on-chain ticks</span>
             </div>
             <p className="text-[11px] leading-relaxed text-faint">
-              The ER executes <span className="font-mono">check_trailing_stop</span> itself — zero client transactions.
+              The ER runs <span className="font-mono">check_trailing_stop</span> itself. Zero client transactions.
             </p>
           </Bezel>
 
-          <Bezel innerClassName="flex flex-col gap-3 p-5">
+          <Bezel innerClassName="flex flex-col gap-2.5 p-5">
             <span className="text-xs font-medium uppercase tracking-wider text-faint">Mirrored squad</span>
             {v.followed.length === 0 && <p className="text-xs text-faint">no leaders mirrored</p>}
             {v.followed.map((f) => (
@@ -199,32 +220,33 @@ export function Dashboard({ session }: { session: SessionInfo }) {
         </aside>
       </div>
 
-      <p className="mt-6 text-center font-mono text-[11px] text-faint">
+      <p className="mt-5 text-center font-mono text-[11px] text-faint">
         live Flash leader data (mainnet) · ER risk engine on devnet · notional {compactUsd(Math.abs(v.qty) * v.markPrice)}
       </p>
     </div>
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" }) {
+function Metric({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
   const color = tone === "up" ? "text-long" : tone === "down" ? "text-short" : "text-fg";
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-faint">{label}</div>
       <div className={`font-mono text-lg font-semibold tnum ${color}`}>{value}</div>
+      {sub && <div className="font-mono text-[10px] text-faint tnum">{sub}</div>}
     </div>
   );
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_330px]">
-        <div className="flex flex-col gap-6">
-          <div className="h-40 animate-pulse rounded-3xl bg-white/[0.03] ring-1 ring-line" />
-          <div className="h-44 animate-pulse rounded-3xl bg-white/[0.03] ring-1 ring-line" />
+    <div className="mx-auto w-full max-w-6xl px-5 py-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="flex flex-col gap-4">
+          <div className="h-32 animate-pulse rounded-xl bg-white/[0.03] ring-1 ring-line" />
+          <div className="h-72 animate-pulse rounded-xl bg-white/[0.03] ring-1 ring-line" />
         </div>
-        <div className="h-80 animate-pulse rounded-3xl bg-white/[0.03] ring-1 ring-line" />
+        <div className="h-72 animate-pulse rounded-xl bg-white/[0.03] ring-1 ring-line" />
       </div>
     </div>
   );

@@ -91,7 +91,7 @@ export function HowItWorks() {
     <section id="how" className="mx-auto w-full max-w-6xl px-6 py-24">
       <Reveal>
         <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-fg md:text-4xl">
-          Copy trading you actually <span className="text-gradient">control</span>.
+          Copy trading you actually control.
         </h2>
       </Reveal>
       <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -128,7 +128,7 @@ export function Guard() {
             <LightningIcon size={16} weight="fill" /> The differentiator
           </span>
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-tight text-fg md:text-5xl">
-            The guard <span className="text-gradient">runs itself</span>.
+            The guard runs itself.
           </h2>
           <p className="text-lg leading-relaxed text-muted">
             <span className="font-mono text-fg">check_trailing_stop</span> is scheduled inside the Ephemeral Rollup. It
@@ -161,7 +161,7 @@ export function Mcp() {
           <SparkleIcon size={16} weight="fill" /> Claude-native
         </span>
         <h2 className="text-3xl font-semibold tracking-tight text-fg md:text-4xl">
-          Watch it from <span className="text-gradient">Claude Code</span>.
+          Watch it from Claude Code.
         </h2>
         <p className="text-lg leading-relaxed text-muted">
           Slipstream ships an MCP server, so Fable becomes your copy-trading copilot — scout, follow, and monitor your
@@ -197,7 +197,7 @@ export function LandingFooter() {
     <footer className="border-t border-line/60">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-6 py-20 text-center">
         <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-fg md:text-4xl">
-          Draft your squad. <span className="text-gradient">Keep your stop on-chain.</span>
+          Draft your squad. Keep your stop on-chain.
         </h2>
         <Link href="/app" className={ctaPrimary}>
           Launch app

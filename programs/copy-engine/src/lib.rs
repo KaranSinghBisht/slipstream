@@ -193,6 +193,7 @@ pub mod copy_engine {
 
     /// ER: persist current vault state to base layer, stay delegated.
     pub fn commit_vault(ctx: Context<CommitVault>) -> Result<()> {
+        require_authorized(&ctx.accounts.vault, &ctx.accounts.payer)?;
         MagicIntentBundleBuilder::new(
             ctx.accounts.payer.to_account_info(),
             ctx.accounts.magic_context.to_account_info(),
@@ -205,6 +206,7 @@ pub mod copy_engine {
 
     /// ER: commit final state and return ownership to this program.
     pub fn undelegate_vault(ctx: Context<CommitVault>) -> Result<()> {
+        require_authorized(&ctx.accounts.vault, &ctx.accounts.payer)?;
         MagicIntentBundleBuilder::new(
             ctx.accounts.payer.to_account_info(),
             ctx.accounts.magic_context.to_account_info(),
