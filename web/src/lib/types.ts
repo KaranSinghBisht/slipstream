@@ -87,6 +87,8 @@ export interface VaultState {
   tickCount: number;
   crankActive: boolean;
   followed: { owner: string; allocationPct: number }[];
+  chart: { you: number; leader: number }[];
+  chartFiredAt: number | null;
   txs: TxLog[];
 }
 

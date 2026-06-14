@@ -5,7 +5,7 @@ import { BroadcastIcon, LightningIcon, ShieldCheckIcon, TrendDownIcon } from "@p
 import { Bezel } from "@/components/ui/Bezel";
 import { Button } from "@/components/ui/Button";
 import { GuardViz } from "@/components/GuardViz";
-import { PnlChart, PnlSample } from "@/components/PnlChart";
+import { PnlChart } from "@/components/PnlChart";
 import { TxFeed } from "@/components/TxFeed";
 import { api } from "@/lib/api";
 import { addr, compactUsd, price, signedPct, usd2 } from "@/lib/format";
@@ -14,39 +14,16 @@ import type { SessionInfo, VaultState } from "@/lib/types";
 export function Dashboard({ session }: { session: SessionInfo }) {
   const [v, setV] = useState<VaultState | null>(null);
   const [stressing, setStressing] = useState(false);
-  const [series, setSeries] = useState<{ samples: PnlSample[]; firedAt: number | null }>({
-    samples: [],
-    firedAt: null,
-  });
   const busy = useRef(false);
-  const baseline = useRef<{ qty: number; entry: number; alloc: number } | null>(null);
 
   useEffect(() => {
     let live = true;
-    baseline.current = null;
-    setSeries({ samples: [], firedAt: null });
     async function tick() {
       if (busy.current) return;
       busy.current = true;
       try {
         const next = await api.state(session.session);
-        if (!live) return;
-        setV(next);
-        // Sample both curves off the vault's recorded scenario price (lastPrice):
-        // the leader holds through; you lock at the stop once it fires.
-        if (!baseline.current && next.qty !== 0) {
-          baseline.current = { qty: next.qty, entry: next.entryPrice, alloc: next.allocationUsd };
-        }
-        const b = baseline.current;
-        if (b) {
-          const leader = b.qty * (next.lastPrice - b.entry);
-          const you = next.stopFired ? next.equityUsd - b.alloc : leader;
-          setSeries((prev) => {
-            const samples = [...prev.samples, { you, leader }].slice(-150);
-            const firedAt = prev.firedAt ?? (next.stopFired ? samples.length - 1 : null);
-            return { samples, firedAt };
-          });
-        }
+        if (live) setV(next);
       } catch {
         /* transient ER read; keep last state */
       } finally {
@@ -145,7 +122,7 @@ export function Dashboard({ session }: { session: SessionInfo }) {
           </Bezel>
 
           <Bezel innerClassName="p-6">
-            <PnlChart samples={series.samples} firedAt={series.firedAt} alloc={v.allocationUsd} />
+            <PnlChart samples={v.chart} firedAt={v.chartFiredAt} alloc={v.allocationUsd} />
           </Bezel>
 
           <Bezel innerClassName="p-6">

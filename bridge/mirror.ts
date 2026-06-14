@@ -58,6 +58,12 @@ export async function followSquad(session: Session, squad: SquadPick[]) {
   );
 
   session.followed = squad.map((p) => ({ owner: p.owner, allocationPct: p.allocationPct }));
+  session.baseline = { qty: qty1e6 / USD, entry: mark, alloc: session.constraints.allocationUsd };
+  session.chart = [
+    { you: 0, leader: 0 },
+    { you: 0, leader: 0 },
+  ];
+  session.chartFiredAt = null;
   await scheduleCrank(session);
   return { mark, leverage, qty: qty1e6 / USD, notionalUsd: notional6 / USD };
 }
@@ -78,36 +84,53 @@ async function scheduleCrank(session: Session): Promise<void> {
   logTx(session, "crank", r.sig, r.ms, `check_trailing_stop every ${CRANK_INTERVAL_MS}ms ×${CRANK_ITERATIONS}`);
 }
 
-/** Read entry + side off the vault so the stress walk crosses the real stop. */
-async function positionContext(session: Session) {
+/** Read the live trail fraction (trail_bps / 1e4) off the vault. */
+async function trailFraction(session: Session): Promise<number> {
   const info = await session.erConn.getAccountInfo(session.vault);
-  if (!info) throw new Error("vault not found on ER");
+  if (!info) return 0.008;
   const v = program.coder.accounts.decode("followerVault", info.data);
-  const qty = v.qty1E6.toNumber();
-  if (qty === 0) throw new Error("no open position to stress");
-  return { entry: v.entryPrice1E6.toNumber() / USD, isLong: qty > 0, trail: v.trailBps / 10_000 };
+  return v.trailBps / 10_000;
 }
 
-/** Deterministic adverse price walk that forces the trailing stop to fire. */
+/**
+ * Deterministic adverse price walk that forces the trailing stop to fire, while
+ * recording the guarded-vs-held P&L curves from the path itself (not the live
+ * lastPrice, which the autonomous crank keeps overwriting with the real feed).
+ * The walk continues PAST the fire so the held line keeps falling while the
+ * guarded line stays locked — that divergence is the point.
+ */
 export async function stress(session: Session) {
-  const { entry, isLong, trail } = await positionContext(session);
-  const dirs = isLong
-    ? [-trail * 0.5, -trail * 0.95, -(trail + 0.006), -(trail + 0.018)]
-    : [trail * 0.5, trail * 0.95, trail + 0.006, trail + 0.018];
+  const b = session.baseline;
+  if (!b) throw new Error("no open position to stress");
+  const { entry, qty, alloc } = b;
+  const isLong = qty > 0;
+  const trail = await trailFraction(session);
+  const offsets = [0.4, 0.8, 1.0, 1.0, 1.0, 1.0];
+  const extra = [0, 0, 0.004, 0.012, 0.022, 0.034];
+  let lockedYou: number | null = null;
 
-  for (let i = 0; i < dirs.length; i++) {
-    const price = entry * (1 + dirs[i]);
+  for (let i = 0; i < offsets.length; i++) {
+    const move = trail * offsets[i] + extra[i];
+    const price = entry * (1 + (isLong ? -move : move));
     const ix = await program.methods
       .applyTick(new BN(Math.round(price * USD)))
       .accounts({ signer: burner.publicKey, vault: session.vault })
       .instruction();
     const r = await sendIx(session.erConn, [burner], ix);
     logTx(session, "stress", r.sig, r.ms, `adverse tick → $${price.toFixed(2)}`);
-    await sleep(450);
-    const after = await session.erConn.getAccountInfo(session.vault);
-    if (after) {
-      const v = program.coder.accounts.decode("followerVault", after.data);
-      if (v.stopFired) break;
+
+    if (lockedYou === null) {
+      const info = await session.erConn.getAccountInfo(session.vault);
+      if (info) {
+        const v = program.coder.accounts.decode("followerVault", info.data);
+        if (v.stopFired) {
+          lockedYou = v.equityUsd6.toNumber() / USD - alloc;
+          session.chartFiredAt = session.chart.length;
+        }
+      }
     }
+    const leader = qty * (price - entry);
+    session.chart.push({ you: lockedYou ?? leader, leader });
+    await sleep(400);
   }
 }

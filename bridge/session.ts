@@ -77,6 +77,8 @@ export async function startSession(c: Constraints): Promise<Session> {
     constraints: { ...c, market },
     referencePriceUi: priceUi,
     followed: [],
+    chart: [],
+    chartFiredAt: null,
     txs: [],
   };
   logTx(session, "delegate", "—", 0, `vault delegated → ${shortUrl(erUrl)}`);
@@ -124,6 +126,8 @@ export async function getVaultState(session: Session) {
     tickCount: num(v.tickCount),
     crankActive: session.crankTaskId !== undefined && !v.stopFired,
     followed: session.followed,
+    chart: session.chart,
+    chartFiredAt: session.chartFiredAt,
     txs: session.txs,
   };
 }

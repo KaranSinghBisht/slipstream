@@ -23,6 +23,11 @@ export interface TxLog {
   detail: string;
 }
 
+export interface ChartPoint {
+  you: number;
+  leader: number;
+}
+
 export interface Session {
   id: string;
   owner: Keypair;
@@ -33,6 +38,9 @@ export interface Session {
   constraints: Constraints;
   referencePriceUi: number;
   followed: { owner: string; allocationPct: number }[];
+  baseline?: { qty: number; entry: number; alloc: number };
+  chart: ChartPoint[];
+  chartFiredAt: number | null;
   crankTaskId?: number;
   txs: TxLog[];
 }
